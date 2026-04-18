@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hostel Events</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="notification-engine.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="theme.css">
+  <style>
+    :root {
+      --events-ink: #122033;
+      --events-line: #d8e3ef;
+      --events-accent: #0f766e;
+      --events-accent-dark: #115e59;
+      --events-glow: linear-gradient(135deg, #f5fbff 0%, #eef8f4 100%);
+    }
+
+    body {
+      background:
+        radial-gradient(circle at top right, rgba(15, 118, 110, 0.12), transparent 26%),
+        linear-gradient(180deg, #f7fafc 0%, #eef5fb 100%);
+      min-height: 100vh;
+    }
+
+    .events-shell {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+    }
+
+    .events-toolbar {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 18px;
+    }
+
+    .events-hero {
+      display: block;
+    }
+
+    .events-card {
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid var(--events-line);
+      border-radius: 24px;
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+    }
+
+    .upload-panel {
+      padding: 24px;
+      background: var(--events-glow);
+    }
+
+    .upload-panel.modal-panel {
+      width: min(100%, 560px);
+      max-height: calc(100vh - 48px);
+      overflow-y: auto;
+      position: relative;
+      box-shadow: 0 28px 60px rgba(15, 23, 42, 0.2);
+    }
+
+    .section-kicker {
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--events-accent-dark);
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .section-heading {
+      color: var(--events-ink);
+      font-size: clamp(24px, 3vw, 34px);
+      line-height: 1.1;
+      margin: 0 0 10px;
+      font-weight: 800;
+    }
+
+    .section-copy {
+      color: #516171;
+      margin-bottom: 20px;
+    }
+
+    .events-form {
+      display: grid;
+      gap: 14px;
+    }
+
+    .events-form label {
+      font-size: 13px;
+      color: #334155;
+      font-weight: 700;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .events-form input,
+    .events-form textarea {
+      width: 100%;
+      border: 1px solid #cdd9e5;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-size: 15px;
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    .events-form textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .events-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .events-btn {
+      border: none;
+      border-radius: 14px;
+      padding: 12px 18px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    .events-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 26px rgba(15, 23, 42, 0.12);
+    }
+
+    .events-btn.primary {
+      background: var(--events-accent);
+      color: #fff;
+    }
+
+    .events-btn.secondary {
+      background: #e7eef7;
+      color: #1f2937;
+    }
+
+    .events-btn.ghost {
+      background: rgba(255, 255, 255, 0.92);
+      color: var(--events-accent-dark);
+      border: 1px solid rgba(15, 118, 110, 0.2);
+      box-shadow: 0 12px 26px rgba(15, 23, 42, 0.06);
+    }
+
+    .upload-status {
+      font-size: 13px;
+      color: #475569;
+      min-height: 20px;
+    }
+
+    .upload-choice {
+      display: none;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid rgba(15, 118, 110, 0.18);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .upload-choice.visible {
+      display: grid;
+    }
+
+    .upload-choice-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: #1e293b;
+      margin: 0;
+    }
+
+    .upload-choice-copy {
+      font-size: 13px;
+      color: #64748b;
+      margin: 0;
+    }
+
+    .upload-choice-options {
+      display: grid;
+      gap: 10px;
+    }
+
+    .upload-choice-option {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 12px 14px;
+      border: 1px solid #d7e1ec;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.92);
+      cursor: pointer;
+    }
+
+    .upload-choice-option input {
+      margin-top: 3px;
+    }
+
+    .upload-choice-option strong {
+      display: block;
+      font-size: 14px;
+      color: #0f172a;
+    }
+
+    .upload-choice-option span {
+      display: block;
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 2px;
+      line-height: 1.5;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 38px;
+      height: 38px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.96);
+      color: #0f172a;
+      font-size: 22px;
+      cursor: pointer;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+    }
+
+    .events-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 1200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(15, 23, 42, 0.5);
+      backdrop-filter: blur(6px);
+    }
+
+    .events-modal.open {
+      display: flex;
+    }
+
+    .carousel-panel {
+      position: relative;
+      overflow: hidden;
+      min-height: 640px;
+      background: #0f172a;
+      color: #eff6ff;
+    }
+
+    .carousel-empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      min-height: 640px;
+      padding: 28px;
+      text-align: center;
+      color: rgba(239, 246, 255, 0.82);
+    }
+
+    .carousel-slide {
+      position: relative;
+      display: none;
+      min-height: 640px;
+    }
+
+    .carousel-slide.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .carousel-photo-wrap {
+      position: relative;
+      min-height: 430px;
+      height: 430px;
+      background:
+        radial-gradient(circle at top left, rgba(15, 118, 110, 0.18), transparent 32%),
+        linear-gradient(180deg, #08111d 0%, #0f172a 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px 78px;
+    }
+
+    .carousel-photo {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      filter: none;
+    }
+
+    .carousel-photo-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(7, 12, 22, 0.08) 0%, rgba(7, 12, 22, 0.28) 100%);
+      pointer-events: none;
+    }
+
+    .carousel-content {
+      position: relative;
+      padding: 26px 34px 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: start;
+      background:
+        radial-gradient(circle at top left, rgba(15, 118, 110, 0.22), transparent 36%),
+        linear-gradient(160deg, rgba(15, 23, 42, 0.96) 0%, rgba(8, 47, 73, 0.96) 100%);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .event-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #d7f8f2;
+      margin-bottom: 16px;
+    }
+
+    .event-title {
+      font-size: clamp(26px, 3vw, 38px);
+      line-height: 1.05;
+      margin: 0 0 14px;
+      font-weight: 800;
+    }
+
+    .event-description {
+      font-size: 16px;
+      line-height: 1.7;
+      color: rgba(239, 246, 255, 0.88);
+      margin: 0 0 18px;
+      white-space: pre-wrap;
+    }
+
+    .event-meta {
+      font-size: 13px;
+      color: rgba(239, 246, 255, 0.72);
+    }
+
+    .carousel-nav {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 18px;
+      pointer-events: none;
+    }
+
+    .carousel-arrow {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      background: rgba(15, 23, 42, 0.55);
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      cursor: pointer;
+      pointer-events: auto;
+      backdrop-filter: blur(8px);
+      transition: transform 0.18s ease, background 0.18s ease;
+      transform: translateY(-50%);
+      position: relative;
+      top: 50%;
+    }
+
+    .carousel-arrow:hover {
+      transform: translateY(-1px) scale(1.02);
+      background: rgba(15, 118, 110, 0.78);
+    }
+
+    .carousel-dots {
+      display: flex;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 100%;
+      padding: 0 20px 24px;
+      margin-top: -2px;
+      background: linear-gradient(160deg, rgba(15, 23, 42, 0.96) 0%, rgba(8, 47, 73, 0.96) 100%);
+    }
+
+    .carousel-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255, 255, 255, 0.35);
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .carousel-dot.active {
+      background: #5eead4;
+      box-shadow: 0 0 0 4px rgba(94, 234, 212, 0.18);
+    }
+
+    .events-list {
+      margin-top: 24px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .mini-card {
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid var(--events-line);
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+    }
+
+    .mini-card img {
+      width: 100%;
+      height: 160px;
+      object-fit: contain;
+      background: #edf3f9;
+      display: block;
+    }
+
+    .mini-card-body {
+      padding: 14px;
+    }
+
+    .mini-card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 6px;
+    }
+
+    .mini-card-text {
+      font-size: 13px;
+      color: #516171;
+      margin: 0;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .mini-card-meta {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    @media (max-width: 980px) {
+      .carousel-photo-wrap,
+      .carousel-slide,
+      .carousel-empty {
+        min-height: 420px;
+      }
+
+      .carousel-content {
+        min-height: 220px;
+      }
+
+      .carousel-photo-wrap {
+        height: 360px;
+        padding: 20px 62px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .events-shell {
+        padding: 20px 14px 36px;
+      }
+
+      .events-toolbar {
+        justify-content: stretch;
+      }
+
+      .events-toolbar .events-btn {
+        width: 100%;
+      }
+
+      .upload-panel,
+      .carousel-content {
+        padding: 20px;
+      }
+
+      .events-modal {
+        padding: 14px;
+      }
+
+      .upload-panel.modal-panel {
+        max-height: calc(100vh - 28px);
+      }
+
+      .carousel-nav {
+        padding: 0 12px;
+      }
+
+      .carousel-arrow {
+        width: 42px;
+        height: 42px;
+      }
+
+      .carousel-photo-wrap {
+        height: 280px;
+        min-height: 280px;
+        padding: 16px 54px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="topbar px-3 px-md-4 py-3 d-flex justify-content-between align-items-center">
+    <h4 class="mb-0">Hostel Events</h4>
+    <div class="d-flex gap-2 flex-wrap">
+      <button class="btn btn-light btn-sm" onclick="location.href='dashboard.html'">
+        <i class="bi bi-arrow-left"></i> Dashboard
+      </button>
+      <button class="btn btn-danger btn-sm" onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <main class="events-shell">
+    <section class="events-toolbar">
+      <button class="events-btn ghost" type="button" onclick="openEventUploadModal()">
+        <i class="bi bi-plus-circle"></i> Add Event
+      </button>
+    </section>
+
+    <section class="events-hero">
+      <article class="events-card carousel-panel">
+        <div id="eventsCarouselArea">
+          <div class="carousel-empty">
+            No events uploaded yet. Add the first event from the form to start the slideshow.
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="events-list" id="eventsList"></section>
+  </main>
+
+  <div class="events-modal" id="eventUploadModal" aria-hidden="true" onclick="handleEventModalBackdrop(event)">
+    <article class="events-card upload-panel modal-panel" role="dialog" aria-modal="true" aria-labelledby="eventUploadHeading">
+      <button class="modal-close" type="button" aria-label="Close upload form" onclick="closeEventUploadModal()">
+        <i class="bi bi-x-lg"></i>
+      </button>
+      <div class="section-kicker">Warden Upload</div>
+      <h1 class="section-heading" id="eventUploadHeading">Share competitions, celebrations, and hostel moments</h1>
+      <p class="section-copy">Add a title, a short description, and one or more images. The same page automatically rotates each event photo every 5 seconds.</p>
+
+      <div class="events-form">
+        <div>
+          <label for="eventTitle">Event Title</label>
+          <input id="eventTitle" type="text" placeholder="Example: Hostel Chess Competition">
+        </div>
+        <div>
+          <label for="eventDescription">Description</label>
+          <textarea id="eventDescription" placeholder="Write what happened, who participated, or why the event mattered."></textarea>
+        </div>
+        <div>
+          <label for="eventImage">Event Images</label>
+          <input id="eventImage" type="file" accept="image/*" multiple onchange="handleEventImageSelection()">
+        </div>
+        <div class="upload-choice" id="uploadChoicePanel">
+          <p class="upload-choice-title">How should these images be shown?</p>
+          <p class="upload-choice-copy">Choose whether visitors should see each image separately or one combined collage image.</p>
+          <div class="upload-choice-options">
+            <label class="upload-choice-option" for="displaySeparate">
+              <input id="displaySeparate" name="eventDisplayMode" type="radio" value="separate" checked>
+              <div>
+                <strong>Show separately</strong>
+                <span>Each uploaded image appears as its own slide in the event gallery.</span>
+              </div>
+            </label>
+            <label class="upload-choice-option" for="displayCollage">
+              <input id="displayCollage" name="eventDisplayMode" type="radio" value="collage">
+              <div>
+                <strong>Show as collage</strong>
+                <span>Combine all selected images into one single collage-style image.</span>
+              </div>
+            </label>
+          </div>
+        </div>
+        <div class="events-actions">
+          <button class="events-btn primary" type="button" onclick="createHostelEvent()">Publish Event</button>
+          <button class="events-btn secondary" type="button" onclick="resetEventForm()">Clear</button>
+        </div>
+        <div class="upload-status" id="uploadStatus">Ready to add a new hostel event.</div>
+      </div>
+    </article>
+  </div>
+
+  <script src="ui-shortcuts.js"></script>
+  <script src="app-layout.js"></script>
+  <script>
+    const supabaseClient = window.getSupabaseClient();
+    const EVENT_BUCKET = "hostel-events";
+    const EVENT_TABLE = "hostel_events";
+    let allEvents = [];
+    let eventSlides = [];
+    let activeEventIndex = 0;
+    let eventSliderTimer = null;
+
+    HostelNotifications.refreshNotificationBadges();
+
+    async function checkAuth() {
+      const res = await supabaseClient.auth.getUser();
+      if (!res.data.user) {
+        window.location.href = "login.html";
+      }
+    }
+    checkAuth();
+
+    window.logout = async function () {
+      await supabaseClient.auth.signOut();
+      window.location.href = "login.html";
+    };
+
+    function setUploadStatus(message, isError) {
+      const status = document.getElementById("uploadStatus");
+      status.innerText = message;
+      status.style.color = isError ? "#b91c1c" : "#475569";
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function formatEventTime(value) {
+      if (typeof window.formatHostelDateTime === "function") {
+        return window.formatHostelDateTime(value);
+      }
+      return new Date(value).toLocaleString("en-IN");
+    }
+
+    function resetEventForm() {
+      document.getElementById("eventTitle").value = "";
+      document.getElementById("eventDescription").value = "";
+      document.getElementById("eventImage").value = "";
+      document.getElementById("displaySeparate").checked = true;
+      handleEventImageSelection();
+      setUploadStatus("Ready to add a new hostel event.", false);
+    }
+
+    function handleEventImageSelection() {
+      const files = Array.from(document.getElementById("eventImage").files || []);
+      const panel = document.getElementById("uploadChoicePanel");
+      if (files.length > 1) {
+        panel.classList.add("visible");
+      } else {
+        panel.classList.remove("visible");
+        document.getElementById("displaySeparate").checked = true;
+      }
+    }
+
+    function openEventUploadModal() {
+      const modal = document.getElementById("eventUploadModal");
+      modal.classList.add("open");
+      modal.setAttribute("aria-hidden", "false");
+      window.document.body.style.overflow = "hidden";
+    }
+
+    function closeEventUploadModal() {
+      const modal = document.getElementById("eventUploadModal");
+      modal.classList.remove("open");
+      modal.setAttribute("aria-hidden", "true");
+      window.document.body.style.overflow = "";
+    }
+
+    function handleEventModalBackdrop(event) {
+      if (event.target && event.target.id === "eventUploadModal") {
+        closeEventUploadModal();
+      }
+    }
+
+    async function getEventImageUrl(path) {
+      if (!path) return "";
+      const { data, error } = await supabaseClient
+        .storage
+        .from(EVENT_BUCKET)
+        .createSignedUrl(path, 3600);
+      if (error) return "";
+      return data?.signedUrl || "";
+    }
+
+    function parseEventImageData(value) {
+      const fallback = {
+        mode: "separate",
+        paths: [],
+        sourceCount: 0
+      };
+
+      if (!value) return fallback;
+      const raw = String(value).trim();
+      if (!raw) return fallback;
+
+      if (raw.startsWith("[")) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            const paths = parsed.map(function (item) {
+              return String(item || "").trim();
+            }).filter(Boolean);
+            return {
+              mode: "separate",
+              paths: paths,
+              sourceCount: paths.length
+            };
+          }
+        } catch (error) {
+          console.warn("Failed to parse event image list", error);
+        }
+      }
+
+      if (raw.startsWith("{")) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === "object") {
+            const paths = Array.isArray(parsed.paths)
+              ? parsed.paths.map(function (item) {
+                  return String(item || "").trim();
+                }).filter(Boolean)
+              : [];
+            return {
+              mode: parsed.mode === "collage" ? "collage" : "separate",
+              paths: paths,
+              sourceCount: Number(parsed.sourceCount) > 0 ? Number(parsed.sourceCount) : paths.length
+            };
+          }
+        } catch (error) {
+          console.warn("Failed to parse event image object", error);
+        }
+      }
+
+      return {
+        mode: "separate",
+        paths: [raw],
+        sourceCount: 1
+      };
+    }
+
+    function parseEventImagePaths(value) {
+      return parseEventImageData(value).paths;
+    }
+
+    function getSelectedDisplayMode(imageCount) {
+      if (imageCount <= 1) return "separate";
+      const selected = document.querySelector('input[name="eventDisplayMode"]:checked');
+      return selected ? selected.value : "separate";
+    }
+
+    function readFileAsDataUrl(file) {
+      return new Promise(function (resolve, reject) {
+        const reader = new FileReader();
+        reader.onload = function () {
+          resolve(reader.result);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function loadImageElement(source) {
+      return new Promise(function (resolve, reject) {
+        const image = new Image();
+        image.onload = function () {
+          resolve(image);
+        };
+        image.onerror = reject;
+        image.src = source;
+      });
+    }
+
+    async function createEventCollageFile(imageFiles, safeName) {
+      const sources = await Promise.all(imageFiles.map(readFileAsDataUrl));
+      const images = await Promise.all(sources.map(loadImageElement));
+      const total = images.length;
+      const columns = total <= 2 ? total : 2;
+      const rows = Math.ceil(total / columns);
+      const cellSize = 1200 / columns;
+      const canvas = document.createElement("canvas");
+      canvas.width = columns * cellSize;
+      canvas.height = rows * cellSize;
+      const context = canvas.getContext("2d");
+
+      context.fillStyle = "#e2e8f0";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+
+      images.forEach(function (image, index) {
+        const col = index % columns;
+        const row = Math.floor(index / columns);
+        const x = col * cellSize;
+        const y = row * cellSize;
+        const scale = Math.max(cellSize / image.width, cellSize / image.height);
+        const drawWidth = image.width * scale;
+        const drawHeight = image.height * scale;
+        const drawX = x + ((cellSize - drawWidth) / 2);
+        const drawY = y + ((cellSize - drawHeight) / 2);
+
+        context.save();
+        context.beginPath();
+        context.rect(x, y, cellSize, cellSize);
+        context.clip();
+        context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+        context.restore();
+
+        context.strokeStyle = "rgba(255,255,255,0.88)";
+        context.lineWidth = 10;
+        context.strokeRect(x, y, cellSize, cellSize);
+      });
+
+      const blob = await new Promise(function (resolve) {
+        canvas.toBlob(resolve, "image/jpeg", 0.92);
+      });
+
+      if (!blob) {
+        throw new Error("Could not create collage image.");
+      }
+
+      return new File([blob], safeName + "-collage.jpg", { type: "image/jpeg" });
+    }
+
+    function stopEventSlider() {
+      if (eventSliderTimer) {
+        window.clearInterval(eventSliderTimer);
+        eventSliderTimer = null;
+      }
+    }
+
+    function startEventSlider() {
+      stopEventSlider();
+      if (eventSlides.length <= 1) return;
+      eventSliderTimer = window.setInterval(function () {
+        showEventSlide(activeEventIndex + 1);
+      }, 5000);
+    }
+
+    function renderMiniCards() {
+      const list = document.getElementById("eventsList");
+      if (!allEvents.length) {
+        list.innerHTML = "";
+        return;
+      }
+
+      list.innerHTML = allEvents.map(function (event, index) {
+        const firstSlideIndex = eventSlides.findIndex(function (slide) {
+          return slide.eventIndex === index;
+        });
+        const mediaLabel = event.image_mode === "collage" && event.source_image_count > 1
+          ? "Collage of " + event.source_image_count + " photos"
+          : event.image_urls.length + " photo" + (event.image_urls.length === 1 ? "" : "s");
+        return `
+          <article class="mini-card" onclick="showEventSlide(${firstSlideIndex < 0 ? 0 : firstSlideIndex})" style="cursor:pointer;">
+            <img src="${escapeHtml(event.preview_image_url || "")}" alt="${escapeHtml(event.title || "Hostel event")}">
+            <div class="mini-card-body">
+              <div class="mini-card-title">${escapeHtml(event.title || "Hostel Event")}</div>
+              <p class="mini-card-text">${escapeHtml(event.description || "No description added.")}</p>
+              <div class="mini-card-meta">${escapeHtml(formatEventTime(event.created_at))} • ${event.image_urls.length} photo${event.image_urls.length === 1 ? "" : "s"}</div>
+            </div>
+          </article>
+        `;
+      }).join("");
+
+      Array.from(list.querySelectorAll(".mini-card-meta")).forEach(function (metaNode, index) {
+        const event = allEvents[index];
+        if (!event) return;
+        const mediaLabel = event.image_mode === "collage" && event.source_image_count > 1
+          ? "Collage of " + event.source_image_count + " photos"
+          : event.image_urls.length + " photo" + (event.image_urls.length === 1 ? "" : "s");
+        metaNode.textContent = formatEventTime(event.created_at) + " • " + mediaLabel;
+      });
+    }
+
+    function renderCarousel() {
+      const area = document.getElementById("eventsCarouselArea");
+
+      if (!eventSlides.length) {
+        area.innerHTML = `
+          <div class="carousel-empty">
+            No events uploaded yet. Add the first event from the form to start the slideshow.
+          </div>
+        `;
+        return;
+      }
+
+      area.innerHTML = `
+        ${eventSlides.map(function (slide, index) {
+          return `
+            <div class="carousel-slide ${index === activeEventIndex ? "active" : ""}" data-index="${index}">
+              <div class="carousel-photo-wrap">
+                <img class="carousel-photo" src="${escapeHtml(slide.image_url || "")}" alt="${escapeHtml(slide.title || "Hostel event")}">
+                <div class="carousel-photo-overlay"></div>
+                <div class="carousel-nav">
+                  <button class="carousel-arrow" type="button" aria-label="Previous event" onclick="showPrevEvent()">
+                    <i class="bi bi-chevron-left"></i>
+                  </button>
+                  <button class="carousel-arrow" type="button" aria-label="Next event" onclick="showNextEvent()">
+                    <i class="bi bi-chevron-right"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="carousel-content">
+                <div class="event-chip"><i class="bi bi-stars"></i> Hostel Memory</div>
+                <h2 class="event-title">${escapeHtml(slide.title || "Hostel Event")}</h2>
+                <p class="event-description">${escapeHtml(slide.description || "No description added.")}</p>
+                <div class="event-meta">Published ${escapeHtml(formatEventTime(slide.created_at))} • Photo ${slide.image_index + 1} of ${slide.image_count}</div>
+              </div>
+            </div>
+          `;
+        }).join("")}
+        <div class="carousel-dots">
+          ${eventSlides.map(function (_, index) {
+            return `<button class="carousel-dot ${index === activeEventIndex ? "active" : ""}" type="button" aria-label="Show event ${index + 1}" onclick="showEventSlide(${index})"></button>`;
+          }).join("")}
+        </div>
+      `;
+
+      Array.from(area.querySelectorAll(".event-meta")).forEach(function (metaNode, index) {
+        const slide = eventSlides[index];
+        if (!slide) return;
+        const mediaLabel = slide.image_mode === "collage" && slide.source_image_count > 1
+          ? "Collage made from " + slide.source_image_count + " photos"
+          : "Photo " + (slide.image_index + 1) + " of " + slide.image_count;
+        metaNode.textContent = "Published " + formatEventTime(slide.created_at) + " • " + mediaLabel;
+      });
+    }
+
+    function showEventSlide(index) {
+      if (!eventSlides.length) return;
+      activeEventIndex = (index + eventSlides.length) % eventSlides.length;
+      renderCarousel();
+      startEventSlider();
+    }
+
+    function showPrevEvent() {
+      showEventSlide(activeEventIndex - 1);
+    }
+
+    function showNextEvent() {
+      showEventSlide(activeEventIndex + 1);
+    }
+
+    window.showEventSlide = showEventSlide;
+    window.showPrevEvent = showPrevEvent;
+    window.showNextEvent = showNextEvent;
+
+    async function loadEvents() {
+      setUploadStatus("Loading events...", false);
+
+      const { data, error } = await supabaseClient
+        .from(EVENT_TABLE)
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error(error);
+        setUploadStatus("Could not load events. Check the events table in Supabase.", true);
+        allEvents = [];
+        renderCarousel();
+        renderMiniCards();
+        return;
+      }
+
+      const resolved = await Promise.all((data || []).map(async function (event) {
+        const imageData = parseEventImageData(event.image_path);
+        const imageUrls = (await Promise.all(imageData.paths.map(getEventImageUrl))).filter(Boolean);
+        return {
+          ...event,
+          image_paths: imageData.paths,
+          image_urls: imageUrls,
+          preview_image_url: imageUrls[0] || "",
+          image_mode: imageData.mode,
+          source_image_count: imageData.sourceCount
+        };
+      }));
+
+      allEvents = resolved.filter(function (event) {
+        return event.image_urls.length > 0;
+      });
+      eventSlides = allEvents.flatMap(function (event, eventIndex) {
+        return event.image_urls.map(function (imageUrl, imageIndex) {
+          return {
+            eventIndex: eventIndex,
+            image_index: imageIndex,
+            image_count: event.image_urls.length,
+            image_url: imageUrl,
+            title: event.title,
+            description: event.description,
+            created_at: event.created_at,
+            image_mode: event.image_mode,
+            source_image_count: event.source_image_count
+          };
+        });
+      });
+      activeEventIndex = 0;
+      renderCarousel();
+      renderMiniCards();
+      startEventSlider();
+      setUploadStatus(allEvents.length ? "Events loaded successfully." : "Ready to add a new hostel event.", false);
+    }
+
+    async function createHostelEvent() {
+      const title = document.getElementById("eventTitle").value.trim();
+      const description = document.getElementById("eventDescription").value.trim();
+      const imageFiles = Array.from(document.getElementById("eventImage").files || []);
+      const displayMode = getSelectedDisplayMode(imageFiles.length);
+
+      if (!title || !description || !imageFiles.length) {
+        setUploadStatus("Title, description, and at least one image are required.", true);
+        return;
+      }
+
+      setUploadStatus(`Uploading ${imageFiles.length} image${imageFiles.length === 1 ? "" : "s"}...`, false);
+
+      const safeName = String(title)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "");
+
+      let filesToUpload = imageFiles;
+      if (displayMode === "collage") {
+        try {
+          filesToUpload = [await createEventCollageFile(imageFiles, safeName || "event")];
+        } catch (error) {
+          setUploadStatus(error.message || "Could not create collage image.", true);
+          return;
+        }
+      }
+      const uploadedPaths = [];
+
+      for (let index = 0; index < filesToUpload.length; index += 1) {
+        const imageFile = filesToUpload[index];
+        const fileExt = imageFile.name.includes(".") ? imageFile.name.split(".").pop() : "jpg";
+        const filePath = "events/" + Date.now() + "-" + safeName + "-" + (index + 1) + "." + fileExt;
+
+        const uploadResult = await supabaseClient
+          .storage
+          .from(EVENT_BUCKET)
+          .upload(filePath, imageFile, { upsert: false });
+
+        if (uploadResult.error) {
+          setUploadStatus("Image upload failed: " + uploadResult.error.message, true);
+          return;
+        }
+
+        uploadedPaths.push(filePath);
+      }
+
+      const { error } = await supabaseClient
+        .from(EVENT_TABLE)
+        .insert([{
+          title: title,
+          description: description,
+          image_path: JSON.stringify({
+            mode: displayMode,
+            paths: uploadedPaths,
+            sourceCount: imageFiles.length
+          })
+        }]);
+
+      if (error) {
+        setUploadStatus("Event save failed: " + error.message, true);
+        return;
+      }
+
+      resetEventForm();
+      setUploadStatus("Event published successfully.", false);
+      await loadEvents();
+      closeEventUploadModal();
+    }
+
+    window.createHostelEvent = createHostelEvent;
+    window.resetEventForm = resetEventForm;
+    window.handleEventImageSelection = handleEventImageSelection;
+    window.openEventUploadModal = openEventUploadModal;
+    window.closeEventUploadModal = closeEventUploadModal;
+    window.handleEventModalBackdrop = handleEventModalBackdrop;
+
+    document.addEventListener("DOMContentLoaded", async function () {
+      handleEventImageSelection();
+      await loadEvents();
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") {
+        closeEventUploadModal();
+      }
+    });
+
+    window.addEventListener("beforeunload", function () {
+      stopEventSlider();
+    });
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Room Details</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="notification-engine.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      background: #f1f5f9;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 25px;
+      border-radius: 18px;
+      width: 320px;
+      text-align: center;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .topbar {
+      background: #111827;
+      color: white;
+      padding: 20px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .topbar h2 {
+      margin: 0;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .container {
+      padding: 30px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: white;
+      padding: 18px;
+      border-radius: 16px;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+      text-align: center;
+      transition: 0.25s;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.08);
+    }
+
+    .photo {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      overflow: hidden;
+      margin: 0 auto 8px;
+      border: 2px solid #e5e7eb;
+    }
+
+    .photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .statusText {
+      font-weight: 600;
+      margin-left: 8px;
+    }
+
+    .present {
+      color: #166534;
+    }
+
+    .absent {
+      color: #991b1b;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 45px;
+      height: 24px;
+    }
+
+    .switch input {
+      display: none;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #ccc;
+      transition: .3s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked+.slider {
+      background: #22c55e;
+    }
+
+    input:checked+.slider:before {
+      transform: translateX(20px);
+    }
+
+    button {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-top: 6px;
+    }
+
+    .primary {
+      background: #4f46e5;
+      color: white;
+    }
+
+    .danger {
+      background: #ef4444;
+      color: white;
+    }
+
+    input[type="text"] {
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+
+    .studentRow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      padding: 10px 14px;
+      background: #f9fafb;
+      border-radius: 10px;
+      transition: 0.2s;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+
+    .studentRow:hover {
+      background: #eef2ff;
+    }
+
+    .studentRow.selected {
+      background: #e0e7ff;
+      border-color: #818cf8;
+    }
+
+    .studentRow-main {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+    }
+
+    .studentCheckbox {
+      width: 18px;
+      height: 18px;
+      accent-color: #4f46e5;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .studentMeta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .studentMeta strong {
+      font-size: 14px;
+      color: #111827;
+    }
+
+    .studentMeta span {
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    .selectionCount {
+      margin-top: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #4f46e5;
+    }
+
+    .selectedList {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .selectedChip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: #e0e7ff;
+      color: #312e81;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid #a5b4fc;
+    }
+
+    .selectedChip-mark {
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      background: #4f46e5;
+      color: #ffffff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 900;
+      flex-shrink: 0;
+    }
+
+    .selectedChip button {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      color: #312e81;
+      border: none;
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .studentRow.disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      background: #f3f4f6;
+    }
+
+    .studentRow.disabled:hover {
+      background: #f3f4f6;
+    }
+
+    .selectedPreviewList {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 260px;
+      overflow-y: auto;
+      text-align: left;
+      margin: 10px 0 4px;
+    }
+
+    .selectedPreviewItem {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: #f8fafc;
+      border: 1px solid #dbe4f0;
+    }
+
+    .selectedPreviewItem strong {
+      display: block;
+      color: #111827;
+      font-size: 14px;
+    }
+
+    .selectedPreviewItem span {
+      display: block;
+      color: #64748b;
+      font-size: 12px;
+    }
+
+    .addRoomBox {
+      background: white;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+      margin-top: 40px;
+    }
+
+    .batchBox {
+      margin-top: 20px;
+    }
+
+    .summaryRow {
+      display: flex;
+      gap: 40px;
+      align-items: stretch;
+      /* key change */
+      justify-content: space-between;
+      margin-bottom: 40px;
+    }
+
+    .summaryCards {
+      display: flex;
+      gap: 20px;
+      flex: 1;
+      align-items: stretch;
+    }
+
+    .summaryCards .card {
+      width: 180px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .sideAddBox {
+      width: 340px;
+      padding: 25px;
+      margin-top: 0;
+      /* remove previous margin */
+    }
+  </style>
+  <link rel="stylesheet" href="theme.css">
+</head>
+
+<body>
+
+  <div class="topbar">
+    <h2 id="roomTitle">Room</h2>
+
+    <div class="topbar-right">
+      <button class="primary" onclick="location.href='students.html'">
+        Students
+      </button>
+
+      <button class="primary" onclick="location.href='rooms.html'">
+        Rooms
+      </button>
+
+      <div class="notification" onclick="location.href='notifications.html'">
+        &#128276;
+        <span id="notifBadge" data-notif-badge></span>
+      </div>
+      <button onclick="location.href='transactions.html'">
+        Transactions
+      </button>
+
+      <button class="danger" onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="container">
+
+    <div class="summaryRow">
+
+      <div id="roomSummary" class="summaryCards"></div>
+
+      <div class="addRoomBox sideAddBox">
+        <h3>Add Students</h3>
+
+        <input type="text" id="searchStudent" placeholder="Search by Name or HST">
+
+        <div id="searchResults" style="margin-top:10px;"></div>
+        <div id="selectionCount" class="selectionCount" style="display:none;">0 students selected</div>
+        <div id="selectedStudentsList" class="selectedList" style="display:none;"></div>
+        <div class="app-pagination" id="searchPagination" style="display:none; margin-top:14px;">
+          <button type="button" class="secondary" id="searchPrevBtn">Previous</button>
+          <div class="app-pagination-info" id="searchPageInfo">Page 1 of 1</div>
+          <button type="button" class="secondary" id="searchNextBtn">Next</button>
+        </div>
+
+        <button id="addSelectedBtn" class="primary" style="margin-top:15px;width:100%;" onclick="openAddSelectedPreview()">
+          Add Selected
+        </button>
+      </div>
+
+    </div>
+
+    <h3 style="margin-top:40px;">Occupants</h3>
+    <div id="occupantList" class="grid"></div>
+    <br><br>
+
+
+
+    <script>
+      const supabaseClient = window.getSupabaseClient();
+
+      HostelNotifications.refreshNotificationBadges();
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const roomId = urlParams.get("id");
+
+      let selectedStudents = new Set();
+      let searchResults = [];
+      let searchPage = 1;
+      const searchPageSize = 6;
+      let currentAvailableSeats = 0;
+
+      async function checkAuth() {
+        const res = await supabaseClient.auth.getUser();
+        if (!res.data.user) { window.location.href = "login.html"; }
+      }
+      checkAuth();
+
+      window.logout = async () => {
+        await supabaseClient.auth.signOut();
+        window.location.href = "login.html";
+      };
+
+      async function getImage(path) {
+        if (!path) return null;
+        const res = await supabaseClient.storage
+          .from("student-photos")
+          .createSignedUrl(path, 3600);
+        return res.data?.signedUrl;
+      }
+
+      function showError(message) {
+        alert(message || "Something went wrong.");
+      }
+
+      async function loadRoom() {
+        const { data } = await supabaseClient
+          .from("rooms")
+          .select("*")
+          .eq("id", roomId)
+          .single();
+
+        document.getElementById("roomTitle").innerText =
+          "Room " + data.room_number + " (Capacity: " + data.capacity + ")";
+      }
+
+      async function loadOccupants() {
+        const { data } = await supabaseClient
+          .from("students")
+          .select("*")
+          .eq("room_id", roomId);
+
+        const container = document.getElementById("occupantList");
+        container.innerHTML = "";
+
+        /* ---------- ROOM SUMMARY ---------- */
+
+        const { data: roomData } = await supabaseClient
+          .from("rooms")
+          .select("capacity")
+          .eq("id", roomId)
+          .single();
+
+        const capacity = roomData.capacity;
+        const occupantsCount = data ? data.length : 0;
+        const available = capacity - occupantsCount;
+        currentAvailableSeats = Math.max(0, available);
+
+        document.getElementById("roomSummary").innerHTML = `
+    <div class="card" style="width:200px;">
+      <div style="font-size:13px;color:#6b7280;">Capacity</div>
+      <div style="font-size:24px;font-weight:700;">${capacity}</div>
+    </div>
+
+    <div class="card" style="width:200px;">
+      <div style="font-size:13px;color:#6b7280;">Occupied</div>
+      <div style="font-size:24px;font-weight:700;">${occupantsCount}</div>
+    </div>
+
+    <div class="card" style="width:200px;">
+      <div style="font-size:13px;color:#6b7280;">Available</div>
+      <div style="font-size:24px;font-weight:700;">${available}</div>
+    </div>
+  `;
+
+        const addButton = document.getElementById("addSelectedBtn");
+        if (addButton) {
+          addButton.disabled = currentAvailableSeats <= 0;
+          addButton.textContent = currentAvailableSeats <= 0 ? "Room Full" : "Add Selected";
+        }
+
+        /* ---------- NO OCCUPANTS ---------- */
+
+        if (!data || data.length === 0) {
+          container.innerHTML = "No occupants.";
+          return;
+        }
+
+        /* ---------- RENDER STUDENTS ---------- */
+
+        for (let s of data) {
+
+          let imgHTML = "";
+
+          if (s.photo_path) {
+            const imgUrl = await getImage(s.photo_path);
+            if (imgUrl) {
+              imgHTML = `
+          <div class="photo">
+            <img src="${imgUrl}">
+          </div>
+        `;
+            }
+          }
+
+
+          container.innerHTML += `
+      <div class="card">
+
+        ${imgHTML}
+
+        <div style="font-weight:600;font-size:15px;">
+  ${s.name}
+</div>
+<div style="font-size:12px;color:#6b7280;">
+  ${s.hst_number}
+</div>
+
+        <div style="display:flex;justify-content:center;align-items:center;gap:12px;margin-top:12px;">
+
+          <span class="statusText ${s.status === 'present' ? 'present' : 'absent'}">
+            ${s.status}
+          </span>
+
+          <label class="switch">
+            <input type="checkbox"
+              ${s.status === 'present' ? 'checked' : ''}
+              onchange="toggleStatus('${s.id}',this)">
+            <span class="slider"></span>
+          </label>
+
+          ${s.status === 'absent' && s.note ?
+              `<span onclick="showReasonModal('${s.note.replace(/'/g, "&#39;")}')"
+              style="cursor:pointer;font-size:18px;">
+              &#128276;
+            </span>`
+              : ""}
+
+        </div>
+
+        <br>
+
+        <div style="font-size:13px;margin-top:8px;">
+  Class: ${s.class}
+</div>
+<div style="font-size:13px;color:#6b7280;">
+  ${s.student_phone}
+</div>
+
+        <br><br>
+        <button class="danger"
+  onclick="removeStudent('${s.id}', this)">
+          Remove From Room
+        </button>
+
+      </div>
+    `;
+        }
+      }
+
+      window.toggleStatus = async function (id, toggle) {
+
+        const card = toggle.closest(".card");
+        const statusText = card.querySelector(".statusText");
+
+        // Prevent accidental double execution
+        toggle.disabled = true;
+
+        try {
+
+          if (!toggle.checked) {
+            toggle.checked = true;
+            openAbsenceModal(id, toggle);
+            toggle.disabled = false;
+            return;
+          } else {
+
+            const { error } = await HostelNotifications.markStudentPresent(id);
+            if (error) return;
+
+            statusText.textContent = "present";
+            statusText.className = "statusText present";
+
+            const bell = card.querySelector(".reasonBell");
+            if (bell) bell.remove();
+          }
+
+        } catch (err) {
+          console.error(err);
+        }
+
+        toggle.disabled = false;
+      };
+
+      window.removeStudent = async function (id, btn) {
+
+        try {
+
+          await supabaseClient
+            .from("students")
+            .update({ room_id: null })
+            .eq("id", id);
+
+          const card = btn.closest(".card");
+
+          // Smooth animation
+          card.style.transition = "all 0.25s ease";
+          card.style.opacity = "0";
+          card.style.transform = "scale(0.95)";
+
+          setTimeout(() => {
+            card.remove();
+            updateSummaryCounts(-1);
+          }, 250);
+
+        } catch (err) {
+          console.error(err);
+        }
+      };
+
+      document.getElementById("searchStudent")
+        .addEventListener("input", runSearch);
+
+      document.getElementById("searchPrevBtn").addEventListener("click", function () {
+        searchPage -= 1;
+        renderSearchResults();
+      });
+
+      document.getElementById("searchNextBtn").addEventListener("click", function () {
+        searchPage += 1;
+        renderSearchResults();
+      });
+
+      function updateSelectionCount() {
+        const countEl = document.getElementById("selectionCount");
+        const listEl = document.getElementById("selectedStudentsList");
+        const count = selectedStudents.size;
+        if (!count) {
+          countEl.style.display = "none";
+          countEl.textContent = "0 students selected";
+          listEl.style.display = "none";
+          listEl.innerHTML = "";
+          return;
+        }
+
+        countEl.style.display = "block";
+        countEl.textContent = `${count} student${count === 1 ? "" : "s"} selected`;
+        listEl.style.display = "flex";
+
+        const selectedItems = getSelectedStudentsData();
+
+        listEl.innerHTML = selectedItems.map(function (student) {
+          return `
+            <div class="selectedChip">
+              <span class="selectedChip-mark">OK</span>
+              <span>${student.name} (${student.hst_number})</span>
+              <button type="button" onclick="removeSelectedStudent('${student.id}')">&times;</button>
+            </div>
+          `;
+        }).join("");
+      }
+
+      function getSelectedStudentsData() {
+        return searchResults.filter(function (student) {
+          return selectedStudents.has(String(student.id));
+        });
+      }
+
+      function closeAddSelectedModal() {
+        document.getElementById("addSelectedModal").style.display = "none";
+      }
+
+      window.openAddSelectedPreview = function () {
+        if (currentAvailableSeats <= 0) {
+          showError("Room is full. Remove someone from the room before adding another student.");
+          return;
+        }
+
+        if (selectedStudents.size === 0) {
+          showError("No students selected.");
+          return;
+        }
+
+        const selectedItems = getSelectedStudentsData();
+        const preview = document.getElementById("selectedPreviewList");
+        preview.innerHTML = selectedItems.map(function (student) {
+          return `
+            <div class="selectedPreviewItem">
+              <span class="selectedChip-mark">OK</span>
+              <div>
+                <strong>${student.name}</strong>
+                <span>${student.hst_number}</span>
+              </div>
+            </div>
+          `;
+        }).join("");
+
+        document.getElementById("addSelectedModal").style.display = "flex";
+      };
+
+      function renderSearchResults() {
+        const container = document.getElementById("searchResults");
+        const pagination = document.getElementById("searchPagination");
+        const pageInfo = document.getElementById("searchPageInfo");
+        const prevBtn = document.getElementById("searchPrevBtn");
+        const nextBtn = document.getElementById("searchNextBtn");
+        const availableResults = searchResults.filter(function (student) {
+          return !selectedStudents.has(String(student.id));
+        });
+
+        container.innerHTML = "";
+
+        if (!availableResults.length) {
+          pagination.style.display = "none";
+          updateSelectionCount();
+          container.innerHTML = `<div class="studentRow">No more students available for this search.</div>`;
+          return;
+        }
+
+        const totalItems = availableResults.length;
+        const totalPages = Math.max(1, Math.ceil(totalItems / searchPageSize));
+        if (searchPage > totalPages) searchPage = totalPages;
+        if (searchPage < 1) searchPage = 1;
+
+        const start = (searchPage - 1) * searchPageSize;
+        const pageItems = availableResults.slice(start, start + searchPageSize);
+
+        for (let s of pageItems) {
+          const disabledClass = currentAvailableSeats <= 0 ? "disabled" : "";
+          container.innerHTML += `
+      <div class="studentRow ${disabledClass}" onclick="toggleSelection('${s.id}')">
+        <div class="studentRow-main">
+          <input type="checkbox"
+            class="studentCheckbox"
+            onclick="event.stopPropagation()"
+            onchange="toggleSelection('${s.id}', event)">
+          <div class="studentMeta">
+            <strong>${s.name}</strong>
+            <span>${s.hst_number}</span>
+          </div>
+        </div>
+      </div>
+    `;
+        }
+
+        pageInfo.innerText = `Page ${searchPage} of ${totalPages} (${totalItems} students)`;
+        prevBtn.disabled = searchPage <= 1;
+        nextBtn.disabled = searchPage >= totalPages;
+        pagination.style.display = totalItems > searchPageSize ? "flex" : "none";
+        updateSelectionCount();
+      }
+
+      async function runSearch() {
+
+        const value = document.getElementById("searchStudent").value.toLowerCase();
+        const container = document.getElementById("searchResults");
+        const pagination = document.getElementById("searchPagination");
+        container.innerHTML = "";
+        selectedStudents.clear();
+        searchResults = [];
+        searchPage = 1;
+        updateSelectionCount();
+
+        if (value.length === 0) {
+          pagination.style.display = "none";
+          return;
+        }
+
+        const { data } = await supabaseClient
+          .from("students")
+          .select("*");
+
+        const filtered = data.filter(s =>
+          (s.name.toLowerCase().includes(value) ||
+            s.hst_number.toLowerCase().includes(value))
+          &&
+          s.room_id !== roomId
+        );
+
+        const occupants = await supabaseClient
+          .from("students")
+          .select("id,gender")
+          .eq("room_id", roomId);
+
+        const occupantGender = (occupants.data || []).find(s => String(s.gender || "").trim())?.gender || null;
+        const genderCompatible = occupantGender
+          ? filtered.filter(s => String(s.gender || "").trim().toLowerCase() === String(occupantGender).trim().toLowerCase())
+          : filtered;
+
+        const currentOccupantIds = new Set((occupants.data || []).map(s => String(s.id)));
+        searchResults = genderCompatible.filter(function (student) {
+          return !currentOccupantIds.has(String(student.id));
+        });
+        renderSearchResults();
+      }
+      window.toggleSelection = function (id, event) {
+        const normalizedId = String(id);
+        if (event) {
+          event.stopPropagation();
+        }
+
+        if (currentAvailableSeats <= 0) {
+          showError("Room is full. Remove someone from the room before adding another student.");
+          return;
+        }
+
+        if (selectedStudents.has(normalizedId)) {
+          selectedStudents.delete(normalizedId);
+        } else {
+          if (selectedStudents.size >= currentAvailableSeats) {
+            showError(`Only ${currentAvailableSeats} seat${currentAvailableSeats === 1 ? "" : "s"} available in this room.`);
+            return;
+          }
+          selectedStudents.add(normalizedId);
+        }
+        renderSearchResults();
+      };
+
+      window.removeSelectedStudent = function (id) {
+        const normalizedId = String(id);
+        if (!selectedStudents.has(normalizedId)) return;
+        selectedStudents.delete(normalizedId);
+        renderSearchResults();
+      };
+
+      let addingStudents = false;
+
+      window.addSelectedStudents = async function () {
+
+        if (addingStudents) return;
+        addingStudents = true;
+
+        if (selectedStudents.size === 0) {
+          showError("No students selected.");
+          addingStudents = false;
+          return;
+        }
+
+        const { data: roomData } = await supabaseClient
+          .from("rooms")
+          .select("capacity")
+          .eq("id", roomId)
+          .single();
+
+        const { data: studentsInRoom } = await supabaseClient
+          .from("students")
+          .select("id")
+          .eq("room_id", roomId);
+
+        let availableSeats = roomData.capacity - studentsInRoom.length;
+
+        if (availableSeats <= 0) {
+          showError("Room is full.");
+          addingStudents = false;
+          return;
+        }
+
+        for (let id of selectedStudents) {
+
+          if (availableSeats <= 0) break;
+
+          const { data: studentData } = await supabaseClient
+            .from("students")
+            .select("id,gender")
+            .eq("id", id)
+            .single();
+
+          const genderCheck = await window.validateRoomGenderAssignment(
+            supabaseClient,
+            roomId,
+            studentData?.gender,
+            id
+          );
+
+          if (!genderCheck.ok) {
+            showError("Male and female students cannot stay in the same room.");
+            addingStudents = false;
+            return;
+          }
+
+          await supabaseClient
+            .from("students")
+            .update({ room_id: roomId })
+            .eq("id", id);
+
+          availableSeats--;
+        }
+
+        selectedStudents.clear();
+        addingStudents = false;
+        closeAddSelectedModal();
+
+        loadOccupants();
+        runSearch();
+      };
+
+      function showReasonModal(reason) {
+        document.getElementById("reasonText").innerText = reason;
+        document.getElementById("reasonModal").style.display = "flex";
+      }
+
+      function closeModal() {
+        document.getElementById("reasonModal").style.display = "none";
+      }
+
+      loadRoom();
+      loadOccupants();
+      let absenceStudentId = null;
+      let absenceToggleRef = null;
+
+      function openAbsenceModal(studentId, toggle) {
+        absenceStudentId = studentId;
+        absenceToggleRef = toggle;
+        document.getElementById("absenceReasonInput").value = "";
+        document.getElementById("absenceModal").style.display = "flex";
+      }
+
+      function closeAbsenceModal() {
+        document.getElementById("absenceModal").style.display = "none";
+      }
+
+      async function confirmRoomAbsence() {
+
+        const reason = document.getElementById("absenceReasonInput").value.trim();
+        if (!reason) return;
+
+        const { error } = await HostelNotifications.markStudentAbsent(absenceStudentId, reason);
+        if (error) return;
+
+        const card = absenceToggleRef.closest(".card");
+        const statusText = card.querySelector(".statusText");
+
+        statusText.textContent = "absent";
+        statusText.className = "statusText absent";
+
+        closeAbsenceModal();
+      }
+    </script>
+
+
+    <div class="modal" id="reasonModal">
+      <div class="modal-content">
+        <h3>Absence Reason</h3>
+        <p id="reasonText"></p>
+        <button class="primary" onclick="closeModal()">Close</button>
+      </div>
+    </div>
+    <div class="modal" id="absenceModal">
+      <div class="modal-content">
+        <h3>Mark as Absent</h3>
+        <input type="text" id="absenceReasonInput" placeholder="Enter reason">
+        <button class="primary" onclick="confirmRoomAbsence()">Confirm</button>
+        <button onclick="closeAbsenceModal()">Cancel</button>
+      </div>
+    </div>
+    <div class="modal" id="addSelectedModal">
+      <div class="modal-content">
+        <h3>Selected Students</h3>
+        <div id="selectedPreviewList" class="selectedPreviewList"></div>
+        <button class="primary" onclick="addSelectedStudents()">Confirm Add</button>
+        <button onclick="closeAddSelectedModal()">Cancel</button>
+      </div>
+    </div>
+  <script src="ui-shortcuts.js"></script>
+  <script src="app-layout.js"></script>
+</body>
+
+</html>

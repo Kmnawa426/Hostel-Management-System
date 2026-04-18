@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Add Student</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="notification-engine.js"></script>
+  <link rel="stylesheet" href="theme.css">
+
+  <style>
+    body {
+      background: #f4f6f9;
+      font-family: "Segoe UI", sans-serif;
+    }
+
+    .topbar {
+      background: #111827;
+      color: white;
+      padding: 15px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .topbar h4 {
+      margin: 0;
+      font-weight: 600;
+    }
+
+    .nav-actions button {
+      margin-left: 10px;
+    }
+
+    .notification-wrapper {
+      position: relative;
+      cursor: pointer;
+      margin-left: 20px;
+      font-size: 20px;
+    }
+
+    #notifBadge {
+      position: absolute;
+      top: -6px;
+      right: -8px;
+      background: #ef4444;
+      color: white;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 50%;
+      display: none;
+    }
+
+    .main-card {
+      max-width: 950px;
+      margin: 40px auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+      padding: 35px;
+    }
+
+    .section-title {
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: #111827;
+    }
+
+    .form-control,
+    .form-select {
+      border-radius: 10px;
+      padding: 10px;
+    }
+
+    .btn-primary {
+      background: #4f46e5;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+
+    .btn-primary:hover {
+      background: #4338ca;
+    }
+
+    .btn-danger {
+      border-radius: 10px;
+    }
+
+    .page-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 24px;
+    }
+
+    .bulk-helper {
+      font-size: 13px;
+      color: #475569;
+      margin: 0;
+    }
+
+    .bulk-helper code,
+    .field-chip code {
+      background: #eef2ff;
+      color: #3730a3;
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    .modal-backdrop-local {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 20000;
+    }
+
+    .modal-card-local {
+      width: min(860px, 100%);
+      max-height: 90vh;
+      overflow: auto;
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 25px 60px rgba(15, 23, 42, 0.22);
+      padding: 24px;
+    }
+
+    .modal-card-local h5 {
+      margin-bottom: 8px;
+      color: #111827;
+    }
+
+    .modal-card-local p {
+      color: #475569;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin: 18px 0;
+    }
+
+    .field-chip {
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: #f8fafc;
+      font-size: 13px;
+      color: #334155;
+    }
+
+    .field-chip strong {
+      display: block;
+      color: #111827;
+      margin-bottom: 6px;
+    }
+
+    .bulk-status {
+      margin-top: 10px;
+      font-size: 13px;
+      color: #334155;
+    }
+
+    @media (max-width: 768px) {
+      .page-actions {
+        align-items: stretch;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <h4>Add Student</h4>
+
+    <div class="d-flex align-items-center">
+      <div class="nav-actions">
+        <button class="btn btn-light btn-sm" onclick="location.href='students.html'">Students</button>
+        <button class="btn btn-light btn-sm" onclick="location.href='rooms.html'">Rooms</button>
+        <button class="btn btn-danger btn-sm" onclick="logout()">Logout</button>
+      </div>
+
+      <div class="notification-wrapper" onclick="location.href='notifications.html'">
+        &#128276;
+        <span id="notifBadge" data-notif-badge></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-card">
+    <div class="mb-4">
+      <div class="section-title">Student Information</div>
+      <div class="row">
+        <div class="col-md-4">
+          <input id="name" class="form-control mb-3" placeholder="Student Name" required>
+        </div>
+        <div class="col-md-4">
+          <input id="student_class" class="form-control mb-3" placeholder="Class" required>
+        </div>
+        <div class="col-md-4">
+          <select id="gender" class="form-select mb-3" required>
+            <option value="">Select Gender</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-4">
+      <div class="section-title">Parent Details</div>
+      <div class="row">
+        <div class="col-md-6">
+          <input id="father" class="form-control mb-3" placeholder="Father Name" required>
+        </div>
+        <div class="col-md-6">
+          <input id="father_phone" maxlength="10" inputmode="numeric" class="form-control mb-3" placeholder="Father Phone (10 digits, starts 6-9)" required>
+        </div>
+        <div class="col-md-6">
+          <input id="mother" class="form-control mb-3" placeholder="Mother Name" required>
+        </div>
+        <div class="col-md-6">
+          <input id="mother_phone" maxlength="10" inputmode="numeric" class="form-control mb-3" placeholder="Mother Phone (10 digits, starts 6-9)" required>
+        </div>
+        <div class="col-md-6">
+          <input id="student_phone" maxlength="10" inputmode="numeric" class="form-control mb-3" placeholder="Student Phone (10 digits, starts 6-9)" required>
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-4">
+      <div class="section-title">Room Assignment</div>
+      <select id="roomSelect" class="form-select">
+        <option value="">Assign Room (Optional)</option>
+      </select>
+    </div>
+
+    <div class="mb-4">
+      <div class="section-title">Address & ID</div>
+      <div class="row">
+        <div class="col-md-4">
+          <input id="aadhaar_number" maxlength="12" inputmode="numeric" class="form-control mb-3" placeholder="Aadhaar Number (12 digits)" required>
+        </div>
+        <div class="col-md-8">
+          <input id="address_line_1" class="form-control mb-3" placeholder="Address Line 1" required>
+        </div>
+        <div class="col-12">
+          <input id="address_line_2" class="form-control mb-3" placeholder="Address Line 2 (Optional)">
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-4">
+      <div class="section-title">Profile Photo</div>
+      <input type="file" id="photo" class="form-control">
+    </div>
+
+    <div class="page-actions">
+      <div>
+        <button class="btn btn-outline-primary" type="button" onclick="openBulkUploadModal()">Bulk Add by Excel</button>
+        <p class="bulk-helper mt-2 mb-0">Excel headers must match Supabase field names exactly.</p>
+      </div>
+      <div class="text-end">
+        <button class="btn btn-primary" onclick="addStudent()">Add Student</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop-local" id="bulkUploadModal">
+    <div class="modal-card-local">
+      <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+        <div>
+          <h5>Bulk Add Students</h5>
+          <p class="mb-0">Upload an Excel file where the column names match the student table fields shown below.</p>
+        </div>
+        <button class="btn btn-outline-secondary btn-sm" type="button" onclick="closeBulkUploadModal()">Close</button>
+      </div>
+
+      <div class="mt-4">
+        <div class="section-title mb-2">Required Excel Columns</div>
+        <div class="field-grid">
+          <div class="field-chip"><strong>Name</strong><code>name</code></div>
+          <div class="field-chip"><strong>Class</strong><code>class</code></div>
+          <div class="field-chip"><strong>Gender</strong><code>gender</code></div>
+          <div class="field-chip"><strong>Father Name</strong><code>father_name</code></div>
+          <div class="field-chip"><strong>Father Phone</strong><code>father_phone</code></div>
+          <div class="field-chip"><strong>Mother Name</strong><code>mother_name</code></div>
+          <div class="field-chip"><strong>Mother Phone</strong><code>mother_phone</code></div>
+          <div class="field-chip"><strong>Student Phone</strong><code>student_phone</code></div>
+          <div class="field-chip"><strong>Aadhaar</strong><code>aadhaar_number</code></div>
+          <div class="field-chip"><strong>Address Line 1</strong><code>address_line_1</code></div>
+        </div>
+      </div>
+
+      <div class="mt-3">
+        <div class="section-title mb-2">Optional Excel Columns</div>
+        <div class="field-grid">
+          <div class="field-chip"><strong>Address Line 2</strong><code>address_line_2</code></div>
+          <div class="field-chip"><strong>Room ID</strong><code>room_id</code></div>
+        </div>
+        <p class="bulk-helper">If you use <code>room_id</code>, the value must be the exact room record ID from Supabase.</p>
+      </div>
+
+      <div class="mt-4">
+        <input type="file" id="bulkExcelFile" class="form-control" accept=".xlsx,.xls,.csv">
+        <div class="bulk-status" id="bulkUploadStatus">No file selected.</div>
+      </div>
+
+      <div class="d-flex justify-content-end gap-2 flex-wrap mt-4">
+        <button class="btn btn-outline-secondary" type="button" onclick="closeBulkUploadModal()">Cancel</button>
+        <button class="btn btn-primary" type="button" onclick="bulkAddStudents()">Upload & Insert</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="ui-shortcuts.js"></script>
+
+  <script>
+    const supabaseClient = window.getSupabaseClient();
+    const BULK_REQUIRED_FIELDS = [
+      "name",
+      "class",
+      "gender",
+      "father_name",
+      "father_phone",
+      "mother_name",
+      "mother_phone",
+      "student_phone",
+      "aadhaar_number",
+      "address_line_1"
+    ];
+    const BULK_OPTIONAL_FIELDS = ["address_line_2", "room_id"];
+    let parsedBulkRows = [];
+
+    HostelNotifications.refreshNotificationBadges();
+
+    async function checkAuth() {
+      const res = await supabaseClient.auth.getUser();
+      if (!res.data.user) {
+        window.location.href = "login.html";
+      }
+    }
+    checkAuth();
+
+    window.logout = async function () {
+      await supabaseClient.auth.signOut();
+      window.location.href = "login.html";
+    };
+
+    function bindPhoneValidation(input) {
+      input.addEventListener("input", function () {
+        let digits = this.value.replace(/\D/g, "");
+        while (digits.length > 0 && !/^[6-9]/.test(digits)) {
+          digits = digits.slice(1);
+        }
+        this.value = digits.slice(0, 10);
+      });
+    }
+
+    const fatherPhoneInput = document.getElementById("father_phone");
+    const motherPhoneInput = document.getElementById("mother_phone");
+    const studentPhoneInput = document.getElementById("student_phone");
+    const aadhaarInput = document.getElementById("aadhaar_number");
+
+    bindPhoneValidation(fatherPhoneInput);
+    bindPhoneValidation(motherPhoneInput);
+    bindPhoneValidation(studentPhoneInput);
+    aadhaarInput.addEventListener("input", function () {
+      this.value = normalizeAadhaar(this.value);
+    });
+
+    function isValidIndianMobile(phone) {
+      return /^[6-9]\d{9}$/.test(phone);
+    }
+
+    function normalizeAadhaar(value) {
+      return String(value || "").replace(/\D/g, "").slice(0, 12);
+    }
+
+    function isValidAadhaar(value) {
+      return /^\d{12}$/.test(value);
+    }
+
+    function normalizeText(value) {
+      return String(value || "").trim();
+    }
+
+    function normalizeGender(value) {
+      const text = normalizeText(value).toLowerCase();
+      if (text === "male") return "Male";
+      if (text === "female") return "Female";
+      return "";
+    }
+
+    function setBulkStatus(message, isError = false) {
+      const status = document.getElementById("bulkUploadStatus");
+      status.innerText = message;
+      status.style.color = isError ? "#b91c1c" : "#334155";
+    }
+
+    function openBulkUploadModal() {
+      document.getElementById("bulkUploadModal").style.display = "flex";
+      document.getElementById("bulkExcelFile").value = "";
+      parsedBulkRows = [];
+      setBulkStatus("No file selected.");
+    }
+
+    function closeBulkUploadModal() {
+      document.getElementById("bulkUploadModal").style.display = "none";
+    }
+
+    function getNextHstCounter(lastHstNumber) {
+      const numericPart = parseInt(String(lastHstNumber || "HST000").replace("HST", ""), 10);
+      return Number.isFinite(numericPart) ? numericPart + 1 : 1;
+    }
+
+    async function generateNextHstCounters(count) {
+      const { data, error } = await supabaseClient
+        .from("students")
+        .select("hst_number")
+        .order("id", { ascending: false })
+        .limit(1);
+
+      if (error || !data || data.length === 0) {
+        return Array.from({ length: count }, (_, index) => "HST" + String(index + 1).padStart(3, "0"));
+      }
+
+      const start = getNextHstCounter(data[0].hst_number);
+      return Array.from({ length: count }, (_, index) => "HST" + String(start + index).padStart(3, "0"));
+    }
+
+    async function parseBulkExcelFile() {
+      const fileInput = document.getElementById("bulkExcelFile");
+      const file = fileInput.files[0];
+
+      if (!file) {
+        setBulkStatus("Choose an Excel file first.", true);
+        return null;
+      }
+
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array" });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(firstSheet, { defval: "" });
+
+      if (!rows.length) {
+        setBulkStatus("The selected file is empty.", true);
+        return null;
+      }
+
+      const headers = Object.keys(rows[0]);
+      const missingFields = BULK_REQUIRED_FIELDS.filter(field => !headers.includes(field));
+
+      if (missingFields.length) {
+        setBulkStatus(`Missing required columns: ${missingFields.join(", ")}`, true);
+        return null;
+      }
+
+      parsedBulkRows = rows;
+      setBulkStatus(`Loaded ${rows.length} row${rows.length === 1 ? "" : "s"} from ${file.name}.`);
+      return rows;
+    }
+
+    async function buildBulkStudentPayloads(rows) {
+      const roomIds = [...new Set(rows.map(row => normalizeText(row.room_id)).filter(Boolean))];
+      const roomMeta = {};
+      const roomOccupancy = {};
+      const roomGender = {};
+
+      if (roomIds.length) {
+        const { data: rooms, error: roomsError } = await supabaseClient
+          .from("rooms")
+          .select("id, capacity")
+          .in("id", roomIds);
+
+        if (roomsError) {
+          throw new Error(roomsError.message);
+        }
+
+        (rooms || []).forEach(room => {
+          roomMeta[String(room.id)] = room;
+        });
+
+        const { data: existingStudents, error: existingError } = await supabaseClient
+          .from("students")
+          .select("room_id, gender")
+          .in("room_id", roomIds);
+
+        if (existingError) {
+          throw new Error(existingError.message);
+        }
+
+        (existingStudents || []).forEach(student => {
+          const key = String(student.room_id || "");
+          roomOccupancy[key] = (roomOccupancy[key] || 0) + 1;
+          if (!roomGender[key] && student.gender) {
+            roomGender[key] = String(student.gender);
+          }
+        });
+      }
+
+      const hstNumbers = await generateNextHstCounters(rows.length);
+      const payloads = [];
+
+      rows.forEach((row, index) => {
+        const rowNo = index + 2;
+        const gender = normalizeGender(row.gender);
+        const fatherPhone = String(row.father_phone || "").replace(/\D/g, "").slice(0, 10);
+        const motherPhone = String(row.mother_phone || "").replace(/\D/g, "").slice(0, 10);
+        const studentPhone = String(row.student_phone || "").replace(/\D/g, "").slice(0, 10);
+        const aadhaar = normalizeAadhaar(row.aadhaar_number);
+        const roomId = normalizeText(row.room_id) || null;
+
+        if (!normalizeText(row.name) || !normalizeText(row.class) || !gender || !normalizeText(row.father_name) || !normalizeText(row.mother_name) || !normalizeText(row.address_line_1)) {
+          throw new Error(`Row ${rowNo}: missing one or more required fields.`);
+        }
+
+        if (!isValidIndianMobile(fatherPhone) || !isValidIndianMobile(motherPhone) || !isValidIndianMobile(studentPhone)) {
+          throw new Error(`Row ${rowNo}: phone numbers must be 10 digits and start with 6-9.`);
+        }
+
+        if (!isValidAadhaar(aadhaar)) {
+          throw new Error(`Row ${rowNo}: Aadhaar number must be 12 digits.`);
+        }
+
+        if (roomId) {
+          const room = roomMeta[roomId];
+          if (!room) {
+            throw new Error(`Row ${rowNo}: room_id "${roomId}" was not found.`);
+          }
+
+          if (roomGender[roomId] && roomGender[roomId] !== gender) {
+            throw new Error(`Row ${rowNo}: mixed genders are not allowed in the same room.`);
+          }
+
+          roomOccupancy[roomId] = (roomOccupancy[roomId] || 0) + 1;
+          roomGender[roomId] = gender;
+
+          if (roomOccupancy[roomId] > Number(room.capacity || 0)) {
+            throw new Error(`Row ${rowNo}: selected room is full.`);
+          }
+        }
+
+        payloads.push({
+          hst_number: hstNumbers[index],
+          name: normalizeText(row.name),
+          class: normalizeText(row.class),
+          father_name: normalizeText(row.father_name),
+          father_phone: fatherPhone,
+          mother_name: normalizeText(row.mother_name),
+          mother_phone: motherPhone,
+          student_phone: studentPhone,
+          aadhaar_number: aadhaar,
+          address_line_1: normalizeText(row.address_line_1),
+          address_line_2: normalizeText(row.address_line_2) || null,
+          room_id: roomId,
+          gender: gender,
+          status: "present",
+          note: null,
+          absent_since: null,
+          photo_path: null
+        });
+      });
+
+      return payloads;
+    }
+
+    async function bulkAddStudents() {
+      try {
+        const rows = parsedBulkRows.length ? parsedBulkRows : await parseBulkExcelFile();
+        if (!rows) return;
+
+        setBulkStatus("Validating rows and preparing bulk insert...");
+        const payloads = await buildBulkStudentPayloads(rows);
+
+        const { error } = await supabaseClient.from("students").insert(payloads);
+
+        if (error) {
+          setBulkStatus("Bulk insert failed: " + error.message, true);
+          return;
+        }
+
+        setBulkStatus(`Successfully inserted ${payloads.length} student${payloads.length === 1 ? "" : "s"}.`);
+        setTimeout(() => {
+          window.location.href = "students.html";
+        }, 900);
+      } catch (error) {
+        setBulkStatus(error.message || "Bulk upload failed.", true);
+      }
+    }
+
+    async function loadRooms() {
+      const { data, error } = await supabaseClient.from("rooms").select("*");
+      if (error) return;
+
+      const select = document.getElementById("roomSelect");
+      select.innerHTML = `<option value="">Assign Room (Optional)</option>`;
+
+      for (const r of data) {
+        select.innerHTML += `
+          <option value="${r.id}">
+            Room ${r.room_number}
+          </option>
+        `;
+      }
+    }
+    loadRooms();
+
+    document.getElementById("gender").addEventListener("change", loadRooms);
+
+    async function generateHST() {
+      const { data, error } = await supabaseClient
+        .from("students")
+        .select("hst_number")
+        .order("id", { ascending: false })
+        .limit(1);
+
+      if (error || !data || data.length === 0) {
+        return "HST001";
+      }
+
+      const last = data[0].hst_number;
+      const num = parseInt(last.replace("HST", ""), 10) + 1;
+      return "HST" + String(num).padStart(3, "0");
+    }
+
+    window.addStudent = async function () {
+      const nameInput = document.getElementById("name");
+      const classInput = document.getElementById("student_class");
+      const gender = document.getElementById("gender").value;
+      const father = document.getElementById("father");
+      const fatherPhone = document.getElementById("father_phone");
+      const mother = document.getElementById("mother");
+      const motherPhone = document.getElementById("mother_phone");
+      const studentPhone = document.getElementById("student_phone");
+      const aadhaarNumber = normalizeAadhaar(document.getElementById("aadhaar_number").value);
+      const addressLine1 = document.getElementById("address_line_1").value.trim();
+      const addressLine2 = document.getElementById("address_line_2").value.trim();
+      const photo = document.getElementById("photo");
+      const roomSelect = document.getElementById("roomSelect");
+
+      if (!nameInput.value || !classInput.value || !gender || !father.value || !mother.value || !addressLine1) {
+        alert("Please fill all required fields.");
+        return;
+      }
+
+      if (!isValidAadhaar(aadhaarNumber)) {
+        alert("Aadhaar number must be 12 digits.");
+        return;
+      }
+
+      if (
+        !isValidIndianMobile(fatherPhone.value) ||
+        !isValidIndianMobile(motherPhone.value) ||
+        !isValidIndianMobile(studentPhone.value)
+      ) {
+        alert("Phone numbers must be 10 digits and start with 6, 7, 8, or 9.");
+        return;
+      }
+
+      if (roomSelect.value) {
+        const genderCheck = await window.validateRoomGenderAssignment(
+          supabaseClient,
+          roomSelect.value,
+          gender
+        );
+
+        if (!genderCheck.ok) {
+          alert("Male and female students cannot stay in the same room.");
+          return;
+        }
+
+        const { data: roomData } = await supabaseClient
+          .from("rooms")
+          .select("*")
+          .eq("id", roomSelect.value)
+          .single();
+
+        const { data: studentsInRoom } = await supabaseClient
+          .from("students")
+          .select("id")
+          .eq("room_id", roomSelect.value);
+
+        if (studentsInRoom.length >= roomData.capacity) {
+          alert("Selected room is full.");
+          return;
+        }
+      }
+
+      const hst = await generateHST();
+      let photoPath = null;
+      const file = photo.files[0];
+
+      if (file) {
+        const fileName = hst + "_" + Date.now() + ".jpg";
+        const upload = await supabaseClient.storage
+          .from("student-photos")
+          .upload(fileName, file);
+
+        if (upload.error) {
+          alert("Image Upload Error: " + upload.error.message);
+          return;
+        }
+
+        photoPath = fileName;
+      }
+
+      const insert = await supabaseClient.from("students").insert([{
+        hst_number: hst,
+        name: nameInput.value,
+        class: classInput.value,
+        father_name: father.value,
+        father_phone: fatherPhone.value,
+        mother_name: mother.value,
+        mother_phone: motherPhone.value,
+        student_phone: studentPhone.value,
+        aadhaar_number: aadhaarNumber,
+        address_line_1: addressLine1,
+        address_line_2: addressLine2 || null,
+        room_id: roomSelect.value || null,
+        gender: gender,
+        status: "present",
+        note: null,
+        absent_since: null,
+        photo_path: photoPath
+      }]);
+
+      if (insert.error) {
+        alert("Insert Error: " + insert.error.message);
+        console.log(insert.error);
+        return;
+      }
+
+      alert("Student added successfully!");
+      window.location.href = "students.html";
+    };
+
+    document.getElementById("bulkExcelFile").addEventListener("change", function () {
+      parsedBulkRows = [];
+      if (!this.files[0]) {
+        setBulkStatus("No file selected.");
+        return;
+      }
+      setBulkStatus(`Selected file: ${this.files[0].name}`);
+    });
+
+    window.addEventListener("click", function (event) {
+      if (event.target && event.target.id === "bulkUploadModal") {
+        closeBulkUploadModal();
+      }
+    });
+  </script>
+  <script src="app-layout.js"></script>
+</body>
+</html>

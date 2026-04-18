@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Complaint Management</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+
+  <style>
+    body {
+      background: #f4f6f9;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    .topbar {
+      background: #111827;
+      color: white;
+      padding: 15px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .card-hover {
+      transition: 0.25s;
+      cursor: pointer;
+    }
+
+    .card-hover:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    .badge-high {
+      background: #dc2626;
+    }
+
+    .badge-medium {
+      background: #f59e0b;
+    }
+
+    .badge-low {
+      background: #16a34a;
+    }
+
+    .details {
+      display: none;
+    }
+
+    .student-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .app-pagination {
+      margin-top: 22px;
+    }
+  </style>
+  <link rel="stylesheet" href="theme.css">
+</head>
+
+<body>
+
+  <div class="topbar">
+    <h5 class="mb-0">Complaint Management</h5>
+    <button class="btn btn-light btn-sm" onclick="location.href='dashboard.html'">
+      Back
+    </button>
+  </div>
+
+  <div class="container mt-4">
+
+    <div class="row mb-3">
+      <div class="col-md-4">
+        <input type="text" id="searchBox" class="form-control" placeholder="Search by title or student">
+      </div>
+      <div class="col-md-3">
+        <select id="statusFilter" class="form-select">
+          <option value="all">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="resolved">Resolved</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <select id="priorityFilter" class="form-select">
+          <option value="all">All Priority</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+      <div class="col-md-2 text-end">
+        <button class="btn btn-primary" onclick="openAddModal()">
+          + New Complaint
+        </button>
+      </div>
+    </div>
+
+    <div id="complaintList"></div>
+    <div class="app-pagination" id="complaintsPagination" style="display:none;">
+      <button type="button" class="btn btn-light btn-sm" id="complaintsPrevBtn">Previous</button>
+      <div class="app-pagination-info" id="complaintsPageInfo">Page 1 of 1</div>
+      <button type="button" class="btn btn-light btn-sm" id="complaintsNextBtn">Next</button>
+    </div>
+
+  </div>
+
+  <!-- ADD MODAL -->
+  <div class="modal fade" id="addModal">
+    <div class="modal-dialog">
+      <div class="modal-content p-3">
+
+        <h5>Create Complaint</h5>
+
+        <input type="text" id="compTitle" class="form-control mb-2" placeholder="Title">
+
+        <textarea id="compDesc" class="form-control mb-2" placeholder="Description"></textarea>
+
+        <select id="compPriority" class="form-select mb-2">
+          <option value="high">High Priority</option>
+          <option value="medium">Medium Priority</option>
+          <option value="low">Low Priority</option>
+        </select>
+
+        <div class="mb-3">
+
+          <input type="text" id="studentSearch" class="form-control" placeholder="Search student by name or HST">
+
+          <div id="searchResults" class="list-group mt-1" style="max-height:150px;overflow:auto;">
+          </div>
+
+          <div id="selectedStudents" class="mt-2 d-flex flex-wrap gap-2">
+          </div>
+
+        </div>
+
+        <div class="text-end">
+          <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary btn-sm" onclick="createComplaint()">Create</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let deleteComplaintId = null;
+
+    function openDeleteModal(id) {
+      deleteComplaintId = id;
+      new bootstrap.Modal(
+        document.getElementById("deleteModal")
+      ).show();
+    }
+
+    async function confirmDeleteComplaint() {
+
+      const password =
+        document.getElementById("deletePassword").value;
+
+      if (!password) {
+        alert("Enter password");
+        return;
+      }
+
+      // Get current session
+      const { data: sessionData, error: sessionError } =
+        await supabaseClient.auth.getSession();
+
+      if (sessionError || !sessionData.session) {
+        alert("Session expired. Please login again.");
+        return;
+      }
+
+      const email = sessionData.session.user.email;
+
+      // Try re-authenticate
+      const { error: authError } =
+        await supabaseClient.auth.signInWithPassword({
+          email,
+          password
+        });
+
+      if (authError) {
+        alert("Wrong password");
+        return;
+      }
+
+      // Delete relations first
+      await supabaseClient
+        .from("complaint_students")
+        .delete()
+        .eq("complaint_id", deleteComplaintId);
+
+      // Then delete complaint
+      await supabaseClient
+        .from("complaints")
+        .delete()
+        .eq("id", deleteComplaintId);
+
+      // Close password modal
+      bootstrap.Modal.getInstance(
+        document.getElementById("deleteModal")
+      ).hide();
+
+      // Show success modal
+      new bootstrap.Modal(
+        document.getElementById("deleteSuccessModal")
+      ).show();
+
+      loadComplaints();
+    }
+    let allStudents = [];
+    let selectedStudentIds = new Set();
+
+    function handleStudentSearch() {
+
+      const query = document
+        .getElementById("studentSearch")
+        .value
+        .toLowerCase()
+        .trim();
+
+      const resultsDiv =
+        document.getElementById("searchResults");
+
+      resultsDiv.innerHTML = "";
+
+      if (!query || !Array.isArray(allStudents)) return;
+
+      const matches = allStudents.filter(s =>
+        (s.name || "").toLowerCase().includes(query) ||
+        String(s.hst_number || "").includes(query)
+      );
+
+      if (matches.length === 0) {
+        resultsDiv.innerHTML =
+          `<div class="list-group-item text-muted">
+        No students found
+      </div>`;
+        return;
+      }
+
+      matches.forEach(s => {
+
+        if (selectedStudentIds.has(s.id)) return;
+
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "list-group-item list-group-item-action";
+        btn.innerText = `${s.name} (${s.hst_number})`;
+
+        btn.onclick = () => {
+          addStudent(s.id, s.name, s.hst_number);
+        };
+
+        resultsDiv.appendChild(btn);
+      });
+    }
+
+    function addStudent(id, name, hst) {
+
+      selectedStudentIds.add(id);
+
+      const container =
+        document.getElementById("selectedStudents");
+
+      container.innerHTML += `
+    <span class="badge bg-primary"
+      id="badge-${id}">
+
+      ${name} (${hst})
+
+      <span style="cursor:pointer;margin-left:6px;"
+        onclick="removeStudent('${id}')">
+        �
+      </span>
+
+    </span>
+  `;
+
+      document.getElementById("studentSearch").value = "";
+      document.getElementById("searchResults").innerHTML = "";
+    }
+
+    function removeStudent(id) {
+      selectedStudentIds.delete(id);
+      document.getElementById("badge-" + id)?.remove();
+    }
+
+    const supabaseClient = window.getSupabaseClient();
+
+    let allComplaints = [];
+    let currentComplaintPage = 1;
+    const complaintPageSize = 8;
+
+    async function loadStudents() {
+
+      const response = await supabaseClient
+        .from("students")
+        .select("id,name,hst_number");
+
+      const data = response.data;
+      const error = response.error;
+
+      console.log("Student data:", data);
+      console.log("Student error:", error);
+
+      if (error) {
+        console.error("Student load error:", error);
+        allStudents = [];
+        return;
+      }
+
+      allStudents = data || [];
+    }
+
+    async function loadComplaints() {
+
+      const { data, error } = await supabaseClient
+        .from("complaints")
+        .select(`
+      *,
+      complaint_students(
+        id,
+        status,
+        resolved_at,
+        students!complaint_students_student_id_fkey(
+        id,
+        name,
+        hst_number
+        ) 
+      )
+    `);
+
+      if (error) {
+        console.error("Complaint load error:", error);
+        allComplaints = [];
+        return;
+      }
+
+      allComplaints = data || [];
+      renderComplaints();
+    }
+
+    function renderComplaints() {
+
+      const search = document.getElementById("searchBox").value.toLowerCase();
+      const statusFilter = document.getElementById("statusFilter").value;
+      const priorityFilter = document.getElementById("priorityFilter").value;
+
+      const container = document.getElementById("complaintList");
+      const pagination = document.getElementById("complaintsPagination");
+      const pageInfo = document.getElementById("complaintsPageInfo");
+      const prevBtn = document.getElementById("complaintsPrevBtn");
+      const nextBtn = document.getElementById("complaintsNextBtn");
+      container.innerHTML = "";
+      const filteredComplaints = [];
+
+      allComplaints.forEach(c => {
+
+        const students = (c.complaint_students || [])
+          .filter(s => s.students !== null);
+
+        const priority = c.priority || "low";
+
+        const pendingCount = students
+          .filter(s => s.status === "pending").length;
+
+        if (statusFilter === "pending" && pendingCount === 0) return;
+        if (statusFilter === "resolved" && pendingCount > 0) return;
+        if (priorityFilter !== "all" && priority !== priorityFilter) return;
+
+        const matchTitle = (c.title || "")
+          .toLowerCase()
+          .includes(search);
+
+        const matchStudent = students.some(s =>
+          s.students?.name?.toLowerCase().includes(search)
+        );
+
+        if (search && !matchTitle && !matchStudent) return;
+        filteredComplaints.push({ complaint: c, students, priority, pendingCount });
+      });
+
+      const totalItems = filteredComplaints.length;
+      const totalPages = Math.max(1, Math.ceil(totalItems / complaintPageSize));
+      if (currentComplaintPage > totalPages) currentComplaintPage = totalPages;
+      if (currentComplaintPage < 1) currentComplaintPage = 1;
+
+      const start = (currentComplaintPage - 1) * complaintPageSize;
+      const pageItems = filteredComplaints.slice(start, start + complaintPageSize);
+
+      pageItems.forEach(({ complaint: c, students, priority, pendingCount }) => {
+        container.innerHTML += `
+      <div class="card shadow-sm mb-3">
+
+        <div class="card-body">
+
+          <div class="d-flex justify-content-between align-items-start">
+
+            <div onclick="toggleDetails('${c.id}')" style="cursor:pointer;">
+              <h6 class="fw-bold mb-1">${c.title}</h6>
+              <small class="text-muted">
+                ${new Date(c.created_at).toLocaleString()}
+              </small>
+            </div>
+
+            <div class="text-end">
+
+              <span class="badge bg-${getPriorityColor(priority)} me-1">
+                ${priority.toUpperCase()}
+              </span>
+
+              <span class="badge bg-secondary me-2">
+                ${pendingCount} Pending
+              </span>
+
+              <button class="btn btn-sm btn-outline-danger"
+                onclick="openDeleteModal('${c.id}')">
+                Delete
+              </button>
+
+            </div>
+
+          </div>
+
+          <div class="mt-3 collapse" id="details-${c.id}">
+
+            <div class="border rounded p-3 mb-3 bg-light">
+              <strong>Description</strong>
+              <div class="mt-2">
+                ${c.description || "No description provided."}
+              </div>
+            </div>
+
+            <div class="border rounded p-3">
+              <strong>Students</strong>
+
+              <div class="mt-2">
+
+                ${students.map(s => `
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+
+                    <div>
+                      ${s.students.name}
+                      (${s.students.hst_number})
+                    </div>
+
+                    ${s.status === "pending"
+            ? `<button class="btn btn-sm btn-success"
+                          onclick="resolveStudent('${s.id}')">
+                          Resolve
+                        </button>`
+            : `<span class="text-success small">
+                          Resolved
+                        </span>`
+          }
+
+                  </div>
+                `).join("")}
+
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    `;
+      });
+
+      if (totalItems === 0) {
+        container.innerHTML = `<div class="card shadow-sm p-4 text-center text-muted">No complaints found.</div>`;
+      }
+
+      pageInfo.innerText = `Page ${currentComplaintPage} of ${totalPages} (${totalItems} complaints)`;
+      prevBtn.disabled = currentComplaintPage <= 1;
+      nextBtn.disabled = currentComplaintPage >= totalPages;
+      pagination.style.display = totalItems > complaintPageSize ? "flex" : "none";
+    }
+
+    function toggleDetails(id) {
+      const el = document.getElementById("details-" + id);
+      el.style.display =
+        el.style.display === "block" ? "none" : "block";
+    }
+
+    async function createComplaint() {
+
+      const title = document.getElementById("compTitle").value.trim();
+      const desc = document.getElementById("compDesc").value.trim();
+      const priority = document.getElementById("compPriority").value;
+
+      const selected = [...selectedStudentIds];
+
+      if (selected.length === 0) {
+        alert("Select at least one student.");
+        return;
+      }
+
+      if (!title || selected.length === 0) {
+        alert("Title and student selection required");
+        return;
+      }
+
+      const { data } = await supabaseClient
+        .from("complaints")
+        .insert([{
+          title,
+          description: desc,
+          priority,
+          created_at: new Date().toISOString(),
+          is_deleted: false
+        }])
+        .select();
+
+      const complaintId = data[0].id;
+
+      const links = selected.map(id => ({
+        complaint_id: complaintId,
+        student_id: id,
+        status: "pending"
+      }));
+
+      await supabaseClient
+        .from("complaint_students")
+        .insert(links);
+
+      bootstrap.Modal.getInstance(
+        document.getElementById('addModal')
+      ).hide();
+
+      loadComplaints();
+    }
+
+    async function resolveStudent(linkId) {
+
+      await supabaseClient
+        .from("complaint_students")
+        .update({
+          status: "resolved",
+          resolved_at: new Date().toISOString()
+        })
+        .eq("id", linkId);
+
+      loadComplaints();
+    }
+
+    function openAddModal() {
+      new bootstrap.Modal(
+        document.getElementById('addModal')
+      ).show();
+    }
+
+    document.getElementById("searchBox")
+      .addEventListener("input", function () {
+        currentComplaintPage = 1;
+        renderComplaints();
+      });
+
+    document.getElementById("statusFilter")
+      .addEventListener("change", function () {
+        currentComplaintPage = 1;
+        renderComplaints();
+      });
+
+    document.getElementById("priorityFilter")
+      .addEventListener("change", function () {
+        currentComplaintPage = 1;
+        renderComplaints();
+      });
+
+    document.getElementById("complaintsPrevBtn").addEventListener("click", function () {
+      currentComplaintPage -= 1;
+      renderComplaints();
+    });
+
+    document.getElementById("complaintsNextBtn").addEventListener("click", function () {
+      currentComplaintPage += 1;
+      renderComplaints();
+    });
+
+    async function init() {
+      await loadStudents();
+      await loadComplaints();
+    }
+
+    init();
+    document.addEventListener("DOMContentLoaded", function () {
+      document
+        .getElementById("studentSearch")
+        .addEventListener("input", handleStudentSearch);
+    });
+    function getPriorityColor(priority) {
+      if (priority === "high") return "danger";
+      if (priority === "medium") return "warning";
+      if (priority === "low") return "success";
+      return "secondary";
+    }
+
+    function toggleDetails(id) {
+      const el = document.getElementById("details-" + id);
+      const collapse = new bootstrap.Collapse(el, { toggle: true });
+    }
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <div class="modal fade" id="deleteModal">
+    <div class="modal-dialog">
+      <div class="modal-content p-3">
+        <h6>Confirm Delete</h6>
+        <input type="password" id="deletePassword" class="form-control mb-3" placeholder="Enter password">
+
+        <div class="text-end">
+          <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+
+          <button class="btn btn-danger btn-sm" onclick="confirmDeleteComplaint()">
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- DELETE SUCCESS MODAL -->
+  <div class="modal fade" id="deleteSuccessModal">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+      <div class="modal-content text-center p-4">
+
+        <div style="font-size:50px;color:#22c55e;">?</div>
+
+        <h6 class="mt-2">Deletion Successful</h6>
+
+        <button class="btn btn-primary btn-sm mt-3" data-bs-dismiss="modal">
+          OK
+        </button>
+
+      </div>
+    </div>
+  </div>
+  <script src="ui-shortcuts.js"></script>
+  <script src="app-layout.js"></script>
+</body>
+
+</html>
+
+
+
+
+
+
+
+

@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Students</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="notification-engine.js"></script>
+  <link rel="stylesheet" href="theme.css">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      background: #f1f5f9;
+    }
+
+    .topbar {
+      background: #111827;
+      color: white;
+      padding: 20px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .topbar h2 {
+      margin: 0;
+    }
+
+    .topbar button {
+      margin-left: 10px;
+    }
+
+    .toolbar {
+      padding: 20px 30px;
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      background: white;
+      border-bottom: 1px solid #eee;
+      flex-wrap: wrap;
+    }
+
+    .toolbar input,
+    .toolbar select {
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      font-size: 14px;
+      background: white;
+    }
+
+    #searchInput {
+      width: 280px;
+      max-width: 100%;
+    }
+
+    .grid {
+      padding: 24px 30px 16px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+      border: 1px solid #e5e7eb;
+    }
+
+    .compact-card {
+      padding: 16px;
+      cursor: pointer;
+      transition: 0.2s;
+      position: relative;
+    }
+
+    .compact-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .compact-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 10px;
+      padding-right: 34px;
+    }
+
+    .name {
+      font-size: 18px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .hst {
+      background: #eef2ff;
+      color: #4338ca;
+      padding: 4px 10px;
+      border-radius: 18px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .compact-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin: 8px 0;
+      font-size: 14px;
+      color: #4b5563;
+    }
+
+    .compact-row strong {
+      color: #111827;
+      font-weight: 700;
+    }
+
+    .pending-money {
+      color: #dc2626 !important;
+    }
+
+    .status-strip {
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #f1f5f9;
+    }
+
+    .status-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: capitalize;
+    }
+
+    .present {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .absent {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .reason-bell {
+      cursor: pointer;
+      font-size: 16px;
+      color: #ef4444;
+      line-height: 1;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 45px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .switch input {
+      display: none;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #ccc;
+      transition: .3s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked+.slider {
+      background: #22c55e;
+    }
+
+    input:checked+.slider:before {
+      transform: translateX(20px);
+    }
+
+    .icon-btn {
+      border: none;
+      background: #f3f4f6;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      cursor: pointer;
+      line-height: 1;
+      font-size: 15px;
+      color: #111827;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    .icon-btn:hover {
+      background: #e5e7eb;
+    }
+
+    .edit-icon {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .compact-card.active .edit-icon {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .app-pagination {
+      padding: 6px 20px 30px;
+    }
+
+    .app-pagination button {
+      padding: 8px 14px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .app-pagination button:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    button {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .primary {
+      background: #4f46e5;
+      color: white;
+    }
+
+    .secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .danger {
+      background: #ef4444;
+      color: white;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 24, 39, 0.55);
+      backdrop-filter: blur(4px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      padding: 20px;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 24px;
+      border-radius: 16px;
+      width: 360px;
+      max-width: 95vw;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      animation: modalFade 0.25s ease;
+    }
+
+    .modal-content h3 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .modal-content input,
+    .modal-content select,
+    .modal-content textarea {
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #d1d5db;
+      font-size: 14px;
+      width: 100%;
+      box-sizing: border-box;
+      font-family: inherit;
+    }
+
+    .modal-content textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .modal-content input:focus,
+    .modal-content select:focus,
+    .modal-content textarea:focus {
+      outline: none;
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .details-modal {
+      width: 660px;
+      max-width: 95vw;
+      max-height: 88vh;
+      overflow-y: auto;
+      padding: 18px;
+    }
+
+    .details-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .details-title {
+      margin: 0;
+      font-size: 24px;
+      color: #111827;
+      font-weight: 800;
+    }
+
+    .details-sub {
+      margin-top: 4px;
+      font-size: 13px;
+      color: #6b7280;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .details-layout {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      gap: 14px;
+      margin-top: 4px;
+    }
+
+    .details-photo {
+      width: 150px;
+      height: 150px;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid #e5e7eb;
+      background: #f8fafc;
+    }
+
+    .details-photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .details-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .field {
+      background: #f8fafc;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 9px 10px;
+    }
+
+    .field span {
+      display: block;
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
+
+    .field strong {
+      display: block;
+      color: #111827;
+      font-size: 14px;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+
+    .field-full {
+      grid-column: 1 / -1;
+    }
+
+    .empty-state {
+      margin: 30px;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      text-align: center;
+      padding: 30px;
+      color: #6b7280;
+      font-weight: 600;
+    }
+
+    @keyframes modalFade {
+      from {
+        opacity: 0;
+        transform: translateY(15px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 720px) {
+      .grid {
+        padding: 18px;
+        grid-template-columns: 1fr;
+      }
+
+      .toolbar {
+        padding: 16px 18px;
+      }
+
+      .details-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .details-photo {
+        width: 130px;
+        height: 130px;
+      }
+
+      .details-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="topbar">
+    <h2 style="cursor: pointer;" onclick="window.location.href='dashboard.html';">
+      Hostel Management
+    </h2>
+    <div>
+      <button class="primary" onclick="location.href='add-student.html'">Add Student</button>
+      <button class="primary" onclick="location.href='rooms.html'">Rooms</button>
+      <button class="primary" onclick="location.href='installments.html'">Installments</button>
+      <button class="primary" onclick="location.href='complaints.html'">Complaints</button>
+      <button onclick="location.href='transactions.html'">Transactions</button>
+      <button class="primary" onclick="exportStudentsToExcel()">Export Excel</button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <input type="text" id="searchInput" placeholder="Search Name / HST / Room / Class...">
+
+    <select id="genderFilter">
+      <option value="">All Genders</option>
+      <option value="Male">Male</option>
+      <option value="Female">Female</option>
+    </select>
+
+    <select id="sortSelect">
+      <option value="">Sort By</option>
+      <option value="name">Name (A-Z)</option>
+      <option value="hst">HST Number</option>
+      <option value="room">Room Name</option>
+      <option value="class">Class</option>
+      <option value="pending">Remaining Installments</option>
+      <option value="status">Status</option>
+    </select>
+  </div>
+
+  <div id="list" class="grid"></div>
+  <div id="emptyState" class="empty-state" style="display:none;">No students found.</div>
+
+  <div id="pagination" class="app-pagination" style="display:none;">
+    <button id="prevPageBtn" onclick="gotoPage(currentPage - 1)">Previous</button>
+    <div class="app-pagination-info" id="pageInfo"></div>
+    <button id="nextPageBtn" onclick="gotoPage(currentPage + 1)">Next</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script>
+    let absenceStudentId = null;
+    let allStudents = [];
+    let filteredStudents = [];
+    let selectedStudentId = null;
+    let currentPage = 1;
+    const pageSize = 24;
+    const pendingAmountMap = {};
+    const roomMap = {};
+
+    const supabaseClient = window.getSupabaseClient();
+
+    function esc(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function formatMoney(value) {
+      return "\u20B9" + Number(value || 0);
+    }
+
+    function toNumber(value) {
+      if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+      const cleaned = String(value ?? "").replace(/[^0-9.-]/g, "");
+      const parsed = Number(cleaned);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function getPendingAmount(student) {
+      return toNumber(pendingAmountMap[String(student?.id ?? "")]);
+    }
+
+    function getHstSortKey(value) {
+      const raw = String(value || "").trim();
+      const normalized = raw.toLowerCase();
+      const digits = normalized.match(/\d+/);
+      return {
+        raw: normalized,
+        hasNumber: Boolean(digits),
+        number: digits ? Number(digits[0]) : Number.POSITIVE_INFINITY
+      };
+    }
+
+    function compareHst(a, b) {
+      const aKey = getHstSortKey(a.hst_number);
+      const bKey = getHstSortKey(b.hst_number);
+
+      // Primary sort: numeric part only (001, 002, 003...)
+      if (aKey.number !== bKey.number) return aKey.number - bKey.number;
+
+      // Secondary sort: stable text fallback
+      return aKey.raw.localeCompare(bKey.raw, undefined, { numeric: true, sensitivity: "base" });
+    }
+
+    function compareRoom(a, b) {
+      const roomA = String(getRoomLabel(a, "")).trim();
+      const roomB = String(getRoomLabel(b, "")).trim();
+
+      const hasRoomA = roomA !== "" && roomA !== "-";
+      const hasRoomB = roomB !== "" && roomB !== "-";
+
+      if (hasRoomA !== hasRoomB) return hasRoomA ? -1 : 1;
+      return roomA.localeCompare(roomB, undefined, { numeric: true, sensitivity: "base" });
+    }
+
+    function getRoomLabel(student, fallback = "-") {
+      const joinedRoom = student?.rooms?.room_number;
+      const mappedRoom = roomMap[student?.room_id];
+      return joinedRoom || mappedRoom || fallback;
+    }
+
+    function getStudentById(id) {
+      const targetId = String(id ?? "");
+      return allStudents.find(s => String(s.id ?? "") === targetId) || null;
+    }
+
+    function formatAddressLine(value) {
+      return String(value || "").trim() || "-";
+    }
+
+    async function getImage(path) {
+      if (!path) return null;
+      const res = await supabaseClient.storage
+        .from("student-photos")
+        .createSignedUrl(path, 3600);
+      return res.data?.signedUrl || null;
+    }
+
+    async function loadRoomsForEdit() {
+      const { data } = await supabaseClient
+        .from("rooms")
+        .select("id, room_number")
+        .order("room_number", { ascending: true });
+
+      const roomSelect = document.getElementById("editRoom");
+      roomSelect.innerHTML = '<option value="">Unassigned</option>';
+
+      for (const r of (data || [])) {
+        roomMap[r.id] = r.room_number;
+        roomSelect.innerHTML += `<option value="${r.id}">Room ${esc(r.room_number)}</option>`;
+      }
+    }
+
+    async function loadStudents() {
+      const { data, error } = await supabaseClient
+        .from("students")
+        .select("*, rooms(room_number)");
+
+      if (error) {
+        console.error(error);
+        return;
+      }
+
+      Object.keys(pendingAmountMap).forEach(k => delete pendingAmountMap[k]);
+
+      const schedulesMap = {};
+      const legacyMap = {};
+
+      const { data: scheduleRows, error: scheduleError } = await supabaseClient
+        .from("installment_schedules")
+        .select("remaining_amount, installment_plans(student_id)")
+        .gt("remaining_amount", 0);
+
+      if (scheduleError) {
+        console.error(scheduleError);
+      } else {
+        for (const row of (scheduleRows || [])) {
+          const key = String(row.installment_plans?.student_id ?? "");
+          if (!key) continue;
+          const current = toNumber(schedulesMap[key]);
+          schedulesMap[key] = current + toNumber(row.remaining_amount);
+        }
+      }
+
+      const { data: legacyRows, error: legacyError } = await supabaseClient
+        .from("student_installments")
+        .select("student_id, remaining_amount")
+        .gt("remaining_amount", 0);
+
+      if (legacyError) {
+        console.error(legacyError);
+      } else {
+        for (const row of (legacyRows || [])) {
+          const key = String(row.student_id ?? "");
+          if (!key) continue;
+          const current = toNumber(legacyMap[key]);
+          legacyMap[key] = current + toNumber(row.remaining_amount);
+        }
+      }
+
+      for (const s of (data || [])) {
+        const key = String(s.id ?? "");
+        pendingAmountMap[key] = toNumber(schedulesMap[key]) || toNumber(legacyMap[key]) || 0;
+      }
+
+      allStudents = data || [];
+      applySearchSort(true);
+    }
+
+    function buildCard(student) {
+      const pendingAmount = getPendingAmount(student);
+      const roomValue = getRoomLabel(student);
+      const reasonEncoded = encodeURIComponent(student.note || "No reason provided");
+      const activeClass = String(selectedStudentId ?? "") === String(student.id ?? "") ? "active" : "";
+
+      return `
+      <div class="card compact-card ${activeClass}" data-id="${student.id}" onclick="openStudentDetails('${student.id}')">
+        <button class="icon-btn edit-icon" title="Edit Student" onclick="openEditFromCard(event, '${student.id}')">&#9998;</button>
+
+        <div class="compact-head">
+          <div class="name">${esc(student.name)}</div>
+          <div class="hst">${esc(student.hst_number)}</div>
+        </div>
+
+        <div class="compact-row">
+          <span>Room</span>
+          <strong>${esc(roomValue)}</strong>
+        </div>
+
+        <div class="compact-row">
+          <span>Class</span>
+          <strong>${esc(student.class || "-")}</strong>
+        </div>
+
+        <div class="compact-row">
+          <span>Remaining Installments</span>
+          <strong class="${pendingAmount > 0 ? "pending-money" : ""}">${formatMoney(pendingAmount)}</strong>
+        </div>
+
+        <div class="status-strip">
+          <div class="status-wrap">
+            <div class="status-badge ${student.status === "absent" ? "absent" : "present"}">${esc(student.status || "present")}</div>
+            ${student.status === "absent" ? `<span class="reason-bell" onclick="event.stopPropagation();showReasonFromEncoded('${reasonEncoded}')">&#128276;</span>` : ""}
+          </div>
+
+          <label class="switch" onclick="event.stopPropagation()">
+            <input type="checkbox"
+              ${student.status === "present" ? "checked" : ""}
+              onclick="event.stopPropagation()"
+              onchange="toggleStatus('${student.id}', this)">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+      `;
+    }
+
+    function renderStudentsPage() {
+      const container = document.getElementById("list");
+      const emptyState = document.getElementById("emptyState");
+      const pagination = document.getElementById("pagination");
+
+      container.innerHTML = "";
+
+      if (!filteredStudents.length) {
+        emptyState.style.display = "block";
+        pagination.style.display = "none";
+        return;
+      }
+
+      emptyState.style.display = "none";
+
+      const totalPages = Math.max(1, Math.ceil(filteredStudents.length / pageSize));
+      if (currentPage > totalPages) currentPage = totalPages;
+
+      const start = (currentPage - 1) * pageSize;
+      const pagedStudents = filteredStudents.slice(start, start + pageSize);
+      container.innerHTML = pagedStudents.map(buildCard).join("");
+
+      const pageStart = start + 1;
+      const pageEnd = Math.min(start + pageSize, filteredStudents.length);
+
+      document.getElementById("pageInfo").innerText = `Showing ${pageStart}-${pageEnd} of ${filteredStudents.length} | Page ${currentPage}/${totalPages}`;
+      document.getElementById("prevPageBtn").disabled = currentPage <= 1;
+      document.getElementById("nextPageBtn").disabled = currentPage >= totalPages;
+      pagination.style.display = totalPages > 1 ? "flex" : "none";
+    }
+
+    function gotoPage(page) {
+      const totalPages = Math.max(1, Math.ceil(filteredStudents.length / pageSize));
+      currentPage = Math.min(Math.max(1, page), totalPages);
+      renderStudentsPage();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function markSelectedCard(studentId) {
+      document.querySelectorAll(".compact-card").forEach(card => {
+        card.classList.toggle("active", card.dataset.id === String(studentId));
+      });
+    }
+
+    function openInstallmentsForSelectedStudent() {
+      const student = getStudentById(selectedStudentId);
+      if (!student) {
+        window.location.href = "installments.html";
+        return;
+      }
+
+      const searchValue = encodeURIComponent(String(student.name || "").trim());
+      window.location.href = `installments.html?search=${searchValue}`;
+    }
+
+    function applySearchSort(resetPage) {
+      const searchValue = document.getElementById("searchInput").value.toLowerCase().trim();
+      const genderFilter = document.getElementById("genderFilter").value;
+      const sortValue = document.getElementById("sortSelect").value;
+
+      const list = allStudents.filter(s => (
+        String(s.name || "").toLowerCase().includes(searchValue) ||
+        String(s.hst_number || "").toLowerCase().includes(searchValue) ||
+        String(getRoomLabel(s, "")).toLowerCase().includes(searchValue) ||
+        String(s.class || "").toLowerCase().includes(searchValue)
+      ) && (!genderFilter || String(s.gender || "") === genderFilter));
+
+      switch (sortValue) {
+        case "name":
+          list.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+          break;
+        case "room":
+          list.sort(compareRoom);
+          break;
+        case "hst":
+          list.sort((a, b) => {
+            const hstOrder = compareHst(a, b);
+            if (hstOrder !== 0) return hstOrder;
+            return String(a.name || "").localeCompare(String(b.name || ""), undefined, { sensitivity: "base" });
+          });
+          break;
+        case "class":
+          list.sort((a, b) => String(a.class || "").localeCompare(String(b.class || ""), undefined, { sensitivity: "base" }));
+          break;
+        case "pending":
+          list.sort((a, b) => {
+            const byPending = getPendingAmount(b) - getPendingAmount(a);
+            if (byPending !== 0) return byPending;
+            return String(a.name || "").localeCompare(String(b.name || ""), undefined, { sensitivity: "base" });
+          });
+          break;
+        case "status":
+          list.sort((a, b) => String(a.status || "").localeCompare(String(b.status || "")));
+          break;
+        default:
+          break;
+      }
+
+      filteredStudents = list;
+      if (resetPage) currentPage = 1;
+      renderStudentsPage();
+    }
+
+    function openEditFromCard(event, studentId) {
+      event.stopPropagation();
+      openEditModal(studentId);
+    }
+
+    async function openStudentDetails(studentId) {
+      selectedStudentId = String(studentId ?? "");
+      markSelectedCard(studentId);
+      const s = getStudentById(studentId);
+      if (!s) return;
+
+      document.getElementById("detailName").innerText = s.name || "-";
+      document.getElementById("detailSubtitle").innerText = `${s.hst_number || "-"} | ${s.class || "-"}`;
+      document.getElementById("detailRoom").innerText = getRoomLabel(s);
+      document.getElementById("detailClass").innerText = s.class || "-";
+      document.getElementById("detailGender").innerText = s.gender || "-";
+      document.getElementById("detailStatus").innerText = s.status || "present";
+      document.getElementById("detailStatus").className = `status-badge ${s.status === "absent" ? "absent" : "present"}`;
+      document.getElementById("detailRemaining").innerText = formatMoney(getPendingAmount(s));
+      document.getElementById("detailRemaining").className = getPendingAmount(s) > 0 ? "pending-money" : "";
+      document.getElementById("detailFatherName").innerText = s.father_name || "-";
+      document.getElementById("detailFatherPhone").innerText = s.father_phone || "-";
+      document.getElementById("detailMotherName").innerText = s.mother_name || "-";
+      document.getElementById("detailMotherPhone").innerText = s.mother_phone || "-";
+      document.getElementById("detailStudentPhone").innerText = s.student_phone || "-";
+      document.getElementById("detailAadhaar").innerText = s.aadhaar_number || "-";
+      document.getElementById("detailAddress1").innerText = formatAddressLine(s.address_line_1);
+      document.getElementById("detailAddress2").innerText = formatAddressLine(s.address_line_2);
+      document.getElementById("detailNote").innerText = s.note || "No absence reason.";
+
+      const detailImage = document.getElementById("detailPhoto");
+      detailImage.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name || "Student")}&background=e5e7eb&color=111`;
+
+      if (s.photo_path) {
+        const imageUrl = await getImage(s.photo_path);
+        if (String(selectedStudentId ?? "") === String(studentId ?? "") && imageUrl) {
+          detailImage.src = imageUrl;
+        }
+      }
+
+      document.getElementById("studentDetailsModal").style.display = "flex";
+    }
+
+    function showReason(reason) {
+      document.getElementById("reasonText").innerText = reason || "No reason found.";
+      document.getElementById("reasonModal").style.display = "flex";
+    }
+
+    function showReasonFromEncoded(encodedReason) {
+      showReason(decodeURIComponent(encodedReason || ""));
+    }
+
+    async function toggleStatus(studentId, checkbox) {
+      if (checkbox.checked) {
+        const { error } = await HostelNotifications.markStudentPresent(studentId);
+
+        if (error) {
+          alert("Update failed");
+          checkbox.checked = false;
+          return;
+        }
+
+        const student = getStudentById(studentId);
+        if (student) {
+          student.status = "present";
+          student.note = null;
+        }
+
+        applySearchSort(false);
+
+        if (String(selectedStudentId ?? "") === String(studentId ?? "")) {
+          openStudentDetails(studentId);
+        }
+
+        return;
+      }
+
+      absenceStudentId = studentId;
+      checkbox.checked = true;
+      document.getElementById("absenceReason").value = "";
+      document.getElementById("absenceModal").style.display = "flex";
+    }
+
+    async function confirmAbsence() {
+      const reason = document.getElementById("absenceReason").value.trim();
+
+      if (!reason) {
+        alert("Please enter reason.");
+        return;
+      }
+
+      const { error } = await HostelNotifications.markStudentAbsent(absenceStudentId, reason);
+
+      if (error) {
+        alert("Update failed");
+        return;
+      }
+
+      const student = getStudentById(absenceStudentId);
+      if (student) {
+        student.status = "absent";
+        student.note = reason;
+      }
+
+      closeModal();
+      applySearchSort(false);
+
+      if (String(selectedStudentId ?? "") === String(absenceStudentId ?? "")) {
+        openStudentDetails(absenceStudentId);
+      }
+    }
+
+    async function openEditModal(studentId = selectedStudentId) {
+      const student = getStudentById(studentId);
+      if (!student) return;
+
+      document.getElementById("editStudentId").value = student.id;
+      document.getElementById("editName").value = student.name || "";
+      document.getElementById("editClass").value = student.class || "";
+      document.getElementById("editFatherName").value = student.father_name || "";
+      document.getElementById("editFatherPhone").value = student.father_phone || "";
+      document.getElementById("editMotherName").value = student.mother_name || "";
+      document.getElementById("editMotherPhone").value = student.mother_phone || "";
+      document.getElementById("editStudentPhone").value = student.student_phone || "";
+      document.getElementById("editAadhaarNumber").value = student.aadhaar_number || "";
+      document.getElementById("editAddressLine1").value = student.address_line_1 || "";
+      document.getElementById("editAddressLine2").value = student.address_line_2 || "";
+      document.getElementById("editGender").value = student.gender || "";
+      document.getElementById("editRoom").value = student.room_id || "";
+
+      document.getElementById("studentEditModal").style.display = "flex";
+    }
+
+    function normalizePhone(value) {
+      return String(value || "").replace(/\D/g, "").slice(0, 10);
+    }
+
+    function normalizeAadhaar(value) {
+      return String(value || "").replace(/\D/g, "").slice(0, 12);
+    }
+
+    function isValidIndianMobile(phone) {
+      return /^[6-9]\d{9}$/.test(phone);
+    }
+
+    function isValidAadhaar(value) {
+      return /^\d{12}$/.test(value);
+    }
+
+    async function saveStudentEdit() {
+      const studentId = document.getElementById("editStudentId").value;
+      if (!studentId) return;
+
+      const payload = {
+        name: document.getElementById("editName").value.trim(),
+        class: document.getElementById("editClass").value.trim(),
+        father_name: document.getElementById("editFatherName").value.trim(),
+        father_phone: normalizePhone(document.getElementById("editFatherPhone").value),
+        mother_name: document.getElementById("editMotherName").value.trim(),
+        mother_phone: normalizePhone(document.getElementById("editMotherPhone").value),
+        student_phone: normalizePhone(document.getElementById("editStudentPhone").value),
+        aadhaar_number: normalizeAadhaar(document.getElementById("editAadhaarNumber").value),
+        address_line_1: document.getElementById("editAddressLine1").value.trim(),
+        address_line_2: document.getElementById("editAddressLine2").value.trim() || null,
+        gender: document.getElementById("editGender").value || null,
+        room_id: document.getElementById("editRoom").value || null
+      };
+
+      if (!payload.name || !payload.class || !payload.address_line_1) {
+        alert("Name, class, and address line 1 are required.");
+        return;
+      }
+
+      if (!isValidAadhaar(payload.aadhaar_number)) {
+        alert("Aadhaar number must be 12 digits.");
+        return;
+      }
+
+      if (
+        !isValidIndianMobile(payload.father_phone) ||
+        !isValidIndianMobile(payload.mother_phone) ||
+        !isValidIndianMobile(payload.student_phone)
+      ) {
+        alert("Phone numbers must be 10 digits and start with 6, 7, 8, or 9.");
+        return;
+      }
+
+      if (payload.room_id) {
+        const genderCheck = await window.validateRoomGenderAssignment(
+          supabaseClient,
+          payload.room_id,
+          payload.gender,
+          studentId
+        );
+
+        if (!genderCheck.ok) {
+          alert("Male and female students cannot stay in the same room.");
+          return;
+        }
+      }
+
+      const { error } = await supabaseClient
+        .from("students")
+        .update(payload)
+        .eq("id", studentId);
+
+      if (error) {
+        alert("Update failed");
+        return;
+      }
+
+      document.getElementById("studentEditModal").style.display = "none";
+      await loadStudents();
+
+      if (String(selectedStudentId ?? "") === String(studentId ?? "")) {
+        openStudentDetails(studentId);
+      }
+    }
+
+    function triggerDetailUpload() {
+      if (!selectedStudentId) return;
+      document.getElementById("detailPhotoInput").click();
+    }
+
+    async function uploadPhoto(studentId, file) {
+      if (!file || !studentId) return;
+
+      const filePath = `${studentId}-${Date.now()}`;
+
+      const { error } = await supabaseClient.storage
+        .from("student-photos")
+        .upload(filePath, file, { upsert: true });
+
+      if (error) {
+        alert("Upload failed");
+        return;
+      }
+
+      await supabaseClient
+        .from("students")
+        .update({ photo_path: filePath })
+        .eq("id", studentId);
+
+      await loadStudents();
+      openStudentDetails(studentId);
+    }
+
+    async function exportStudentsToExcel() {
+      const excelData = allStudents.map(s => ({
+        "Name": s.name || "",
+        "HST": s.hst_number || "",
+        "Room Name": getRoomLabel(s),
+        "Class": s.class || "",
+        "Status": s.status || "",
+        "Remaining Installments": getPendingAmount(s),
+        "Father Name": s.father_name || "",
+        "Father Phone": s.father_phone || "",
+        "Mother Name": s.mother_name || "",
+        "Mother Phone": s.mother_phone || "",
+        "Student Phone": s.student_phone || ""
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Students");
+      XLSX.writeFile(workbook, "Hostel_Students.xlsx");
+    }
+
+    function closeModal() {
+      document.querySelectorAll(".modal").forEach(m => m.style.display = "none");
+    }
+
+    document.getElementById("searchInput").addEventListener("input", () => applySearchSort(true));
+    document.getElementById("genderFilter").addEventListener("change", () => applySearchSort(true));
+    document.getElementById("sortSelect").addEventListener("change", () => applySearchSort(true));
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") closeModal();
+    });
+
+    document.addEventListener("click", function (e) {
+      if (e.target.classList.contains("modal")) {
+        e.target.style.display = "none";
+      }
+    });
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      await loadRoomsForEdit();
+      await loadStudents();
+
+      const params = new URLSearchParams(window.location.search);
+      const launchSearch = params.get("search");
+      const launchStudentId = params.get("student");
+
+      if (launchSearch) {
+        document.getElementById("searchInput").value = launchSearch;
+        applySearchSort(true);
+      }
+
+      if (launchStudentId) {
+        await openStudentDetails(launchStudentId);
+      }
+    });
+  </script>
+
+  <div class="modal" id="studentDetailsModal">
+    <div class="modal-content details-modal">
+      <div class="details-head">
+        <div>
+          <h3 class="details-title" id="detailName">Student</h3>
+          <div class="details-sub" id="detailSubtitle"></div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="primary" title="Mark Installment Received" onclick="openInstallmentsForSelectedStudent()">Installment</button>
+          <button class="icon-btn" title="Edit" onclick="openEditModal()">&#9998;</button>
+          <button class="secondary" onclick="closeModal()">Close</button>
+        </div>
+      </div>
+
+      <div class="details-layout">
+        <div>
+          <div class="details-photo">
+            <img id="detailPhoto" src="" alt="Student Photo">
+          </div>
+          <input type="file" id="detailPhotoInput" style="display:none" accept="image/*" onchange="uploadPhoto(selectedStudentId, this.files[0]); this.value='';">
+          <button class="secondary" style="margin-top:10px;width:100%;" onclick="triggerDetailUpload()">Change Photo</button>
+        </div>
+
+        <div class="details-grid">
+          <div class="field">
+            <span>Room</span>
+            <strong id="detailRoom">-</strong>
+          </div>
+          <div class="field">
+            <span>Class</span>
+            <strong id="detailClass">-</strong>
+          </div>
+          <div class="field">
+            <span>Gender</span>
+            <strong id="detailGender">-</strong>
+          </div>
+
+          <div class="field">
+            <span>Status</span>
+            <div id="detailStatus" class="status-badge present">present</div>
+          </div>
+          <div class="field">
+            <span>Remaining Installments</span>
+            <strong id="detailRemaining">&#8377;0</strong>
+          </div>
+
+          <div class="field">
+            <span>Father Name</span>
+            <strong id="detailFatherName">-</strong>
+          </div>
+          <div class="field">
+            <span>Father Phone</span>
+            <strong id="detailFatherPhone">-</strong>
+          </div>
+
+          <div class="field">
+            <span>Mother Name</span>
+            <strong id="detailMotherName">-</strong>
+          </div>
+          <div class="field">
+            <span>Mother Phone</span>
+            <strong id="detailMotherPhone">-</strong>
+          </div>
+
+          <div class="field field-full">
+            <span>Student Phone</span>
+            <strong id="detailStudentPhone">-</strong>
+          </div>
+
+          <div class="field">
+            <span>Aadhaar</span>
+            <strong id="detailAadhaar">-</strong>
+          </div>
+          <div class="field">
+            <span>Address Line 1</span>
+            <strong id="detailAddress1">-</strong>
+          </div>
+          <div class="field field-full">
+            <span>Address Line 2</span>
+            <strong id="detailAddress2">-</strong>
+          </div>
+
+          <div class="field field-full">
+            <span>Absence Reason</span>
+            <strong id="detailNote">No absence reason.</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="studentEditModal">
+    <div class="modal-content" style="width:640px; max-width:95vw;">
+      <h3>Edit Student</h3>
+      <input type="hidden" id="editStudentId">
+
+      <div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px;">
+        <div>
+          <label>Name</label>
+          <input id="editName" type="text">
+        </div>
+        <div>
+          <label>Class</label>
+          <input id="editClass" type="text">
+        </div>
+
+        <div>
+          <label>Father Name</label>
+          <input id="editFatherName" type="text">
+        </div>
+        <div>
+          <label>Father Phone</label>
+          <input id="editFatherPhone" type="text" maxlength="10" inputmode="numeric">
+        </div>
+
+        <div>
+          <label>Mother Name</label>
+          <input id="editMotherName" type="text">
+        </div>
+        <div>
+          <label>Mother Phone</label>
+          <input id="editMotherPhone" type="text" maxlength="10" inputmode="numeric">
+        </div>
+
+        <div>
+          <label>Student Phone</label>
+          <input id="editStudentPhone" type="text" maxlength="10" inputmode="numeric">
+        </div>
+        <div>
+          <label>Aadhaar Number</label>
+          <input id="editAadhaarNumber" type="text" maxlength="12" inputmode="numeric">
+        </div>
+        <div>
+          <label>Gender</label>
+          <select id="editGender">
+            <option value="">Select</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+          </select>
+        </div>
+
+        <div style="grid-column:1 / -1;">
+          <label>Address Line 1</label>
+          <input id="editAddressLine1" type="text">
+        </div>
+        <div style="grid-column:1 / -1;">
+          <label>Address Line 2</label>
+          <input id="editAddressLine2" type="text">
+        </div>
+        <div style="grid-column:1 / -1;">
+          <label>Room</label>
+          <select id="editRoom"></select>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="secondary" onclick="closeModal()">Cancel</button>
+        <button class="primary" onclick="saveStudentEdit()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="absenceModal">
+    <div class="modal-content">
+      <h3>Mark as Absent</h3>
+      <input type="text" id="absenceReason" placeholder="Enter reason">
+      <div class="modal-actions">
+        <button class="secondary" onclick="closeModal()">Cancel</button>
+        <button class="primary" onclick="confirmAbsence()">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="reasonModal">
+    <div class="modal-content">
+      <h3>Absence Reason</h3>
+      <p id="reasonText" style="font-size:14px; margin:0;"></p>
+      <div class="modal-actions">
+        <button class="primary" onclick="closeModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="ui-shortcuts.js"></script>
+  <script src="app-layout.js"></script>
+</body>
+
+</html>

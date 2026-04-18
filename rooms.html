@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rooms</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="notification-engine.js"></script>
+
+  <style>
+    /* Confirm Modal Enhancements */
+    #confirmModal .modal-content {
+      width: 380px;
+      padding: 28px;
+      border-radius: 18px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+      animation: modalFade 0.25s ease;
+    }
+
+    #confirmModal h3 {
+      margin: 0 0 10px 0;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    #confirmModal p {
+      font-size: 14px;
+      color: #4b5563;
+      margin-bottom: 20px;
+    }
+
+    #confirmModal .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      /* darker overlay */
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 99999;
+    }
+
+    .modal-content {
+      background: #ffffff;
+      padding: 28px;
+      border-radius: 16px;
+      width: 380px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+      animation: modalFade 0.2s ease;
+    }
+
+    #confirmModal button {
+      min-width: 90px;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      background: linear-gradient(to bottom, #f1f5f9, #e5e7eb);
+    }
+
+    /* TOPBAR */
+    .topbar {
+      background: #111827;
+      color: white;
+      padding: 20px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .topbar h2 {
+      margin: 0;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    /* Notification */
+    .notification {
+      position: relative;
+      cursor: pointer;
+      font-size: 20px;
+    }
+
+    .notification span {
+      position: absolute;
+      top: -6px;
+      right: -10px;
+      background: #ef4444;
+      color: white;
+      font-size: 12px;
+      padding: 2px 6px;
+      border-radius: 50%;
+      display: none;
+    }
+
+    /* Container */
+    .container {
+      padding: 30px;
+    }
+
+    /* Add Room Box */
+    .addRoomBox {
+      background: white;
+      padding: 25px;
+      border-radius: 18px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+      margin-bottom: 30px;
+    }
+
+    .addRoomBox h3 {
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+
+    /* Inputs */
+    input {
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #d1d5db;
+      width: 100%;
+      margin-bottom: 15px;
+      font-size: 14px;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+    }
+
+    .add-room-grid {
+      display: grid;
+      grid-template-columns: minmax(220px, 1.4fr) minmax(160px, 0.8fr);
+      gap: 15px;
+      align-items: end;
+    }
+
+    .filters-grid {
+      display: grid;
+      grid-template-columns: minmax(240px, 1fr) minmax(200px, 220px);
+      gap: 14px;
+      margin-bottom: 25px;
+      align-items: center;
+    }
+
+    /* Grid */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 280px));
+      gap: 25px;
+      justify-content: start;
+    }
+
+    /* Room Card */
+    .card {
+      background: white;
+      padding: 25px;
+      border-radius: 18px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+      position: relative;
+      transition: 0.3s;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Badge */
+    .badge {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .available {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .full {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    /* Buttons */
+    button {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-top: 8px;
+      font-size: 13px;
+    }
+
+    .primary {
+      background: #4f46e5;
+      color: white;
+    }
+
+    .primary:hover {
+      background: #4338ca;
+    }
+
+    .danger {
+      background: #ef4444;
+      color: white;
+    }
+
+    .danger:hover {
+      background: #dc2626;
+    }
+
+    /* Search */
+    #searchRoom {
+      background: white;
+      margin-bottom: 25px;
+    }
+
+    #roomGenderFilter {
+      background: white;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #d1d5db;
+      font-size: 14px;
+      width: 100%;
+    }
+
+    .addRoomBox {
+      padding: 20px 25px;
+    }
+
+    .add-room-actions {
+      display: flex;
+      justify-content: flex-start;
+      margin-top: 4px;
+    }
+
+    .add-room-btn {
+      width: 180px;
+      margin-top: 0;
+    }
+
+    .stats-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-bottom: 25px;
+      align-items: stretch;
+    }
+
+    .stats-grid .card {
+      width: min(220px, 100%);
+    }
+
+    @media (max-width: 760px) {
+      .add-room-grid,
+      .filters-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .add-room-btn {
+        width: 100%;
+      }
+
+      .stats-grid {
+        gap: 14px;
+      }
+
+      .stats-grid .card {
+        width: 100%;
+      }
+    }
+
+    .card:hover {
+      transform: translateY(-6px);
+      transition: 0.3s;
+    }
+
+    .app-pagination {
+      margin-top: 24px;
+    }
+  </style>
+  <link rel="stylesheet" href="theme.css">
+</head>
+
+<body>
+
+  <div class="topbar">
+    <h2 style="cursor: pointer;" onclick="window.location.href='dashboard.html';">
+      Hostel Management
+    </h2>
+
+    <div class="topbar-right">
+      <button class="primary" onclick="location.href='students.html'">
+        Students
+      </button>
+
+      <div class="notification" onclick="location.href='notifications.html'">
+        &#128276;
+        <span id="notifBadge" data-notif-badge></span>
+      </div>
+      <button onclick="location.href='transactions.html'">
+        Transactions
+      </button>
+
+      <button class="danger" onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="container">
+
+    <div class="addRoomBox">
+      <h3>Add Room</h3>
+      <div class="add-room-grid">
+        <input id="roomNumber" placeholder="Room Number (ex: 101, A201)">
+        <input id="capacity" type="number" placeholder="Capacity">
+      </div>
+
+      <div class="add-room-actions">
+        <button class="primary add-room-btn" onclick="addRoom()">Add Room</button>
+      </div>
+    </div>
+
+    <div class="filters-grid">
+      <input id="searchRoom" placeholder="Search Room Number" style="margin-bottom:0;">
+      <select id="roomGenderFilter">
+        <option value="all">All Rooms</option>
+        <option value="male">Male Only</option>
+        <option value="female">Female Only</option>
+      </select>
+    </div>
+
+    <div id="roomStats" class="stats-grid"></div>
+
+    <div id="roomList" class="grid"></div>
+    <div class="app-pagination" id="roomsPagination" style="display:none;">
+      <button type="button" class="secondary" id="roomsPrevBtn">Previous</button>
+      <div class="app-pagination-info" id="roomsPageInfo">Page 1 of 1</div>
+      <button type="button" class="secondary" id="roomsNextBtn">Next</button>
+    </div>
+
+  </div>
+
+  <script>
+    let allRooms = [];
+    let filteredRooms = [];
+    let roomOccupancy = {};
+    let roomGenderMap = {};
+    let roomPage = 1;
+    const roomPageSize = 12;
+    const supabaseClient = window.getSupabaseClient();
+
+    HostelNotifications.refreshNotificationBadges();
+
+    async function checkAuth() {
+      const res = await supabaseClient.auth.getUser();
+      if (!res.data.user) { window.location.href = "login.html"; }
+    }
+    checkAuth();
+
+    window.logout = async () => {
+      await supabaseClient.auth.signOut();
+      window.location.href = "login.html";
+    };
+
+    async function loadRooms() {
+
+      const { data: rooms } = await supabaseClient
+        .from("rooms")
+        .select("*")
+        .order("room_number");
+
+      const { data: students } = await supabaseClient
+        .from("students")
+        .select("room_id,gender");
+
+      allRooms = rooms;
+
+      roomOccupancy = {};
+      roomGenderMap = {};
+
+      students?.forEach(s => {
+        if (!roomOccupancy[s.room_id]) roomOccupancy[s.room_id] = 0;
+        roomOccupancy[s.room_id]++;
+
+        if (!roomGenderMap[s.room_id]) {
+          roomGenderMap[s.room_id] = new Set();
+        }
+
+        const genderValue = String(s.gender || "").trim().toLowerCase();
+        if (genderValue) {
+          roomGenderMap[s.room_id].add(genderValue);
+        }
+      });
+
+      applyRoomFilters(true);
+      updateRoomStats(allRooms, roomOccupancy);
+    }
+
+    function applyRoomFilters(resetPage) {
+      const value = (document.getElementById("searchRoom").value || "").toLowerCase().trim();
+      const genderFilter = document.getElementById("roomGenderFilter").value;
+      filteredRooms = allRooms.filter(r =>
+        String(r.room_number || "").toLowerCase().includes(value)
+      ).filter(r => {
+        if (genderFilter === "all") return true;
+        return getRoomGenderType(r.id) === genderFilter;
+      });
+
+      if (resetPage) roomPage = 1;
+      renderRooms(filteredRooms, roomOccupancy);
+    }
+
+    function getRoomGenderType(roomId) {
+      const genders = Array.from(roomGenderMap[roomId] || []);
+      if (!genders.length) return "empty";
+      if (genders.length > 1) return "both";
+      return genders[0] === "male" ? "male" : "female";
+    }
+
+    function getRoomGenderLabel(roomId) {
+      const type = getRoomGenderType(roomId);
+      if (type === "male") return "Male";
+      if (type === "female") return "Female";
+      if (type === "both") return "Both";
+      return "Empty";
+    }
+
+    function renderRooms(rooms, grouped) {
+
+      const container = document.getElementById("roomList");
+      const pagination = document.getElementById("roomsPagination");
+      const pageInfo = document.getElementById("roomsPageInfo");
+      const prevBtn = document.getElementById("roomsPrevBtn");
+      const nextBtn = document.getElementById("roomsNextBtn");
+      container.innerHTML = "";
+
+      const totalItems = rooms.length;
+      const totalPages = Math.max(1, Math.ceil(totalItems / roomPageSize));
+      if (roomPage > totalPages) roomPage = totalPages;
+      if (roomPage < 1) roomPage = 1;
+
+      const start = (roomPage - 1) * roomPageSize;
+      const pageItems = rooms.slice(start, start + roomPageSize);
+
+      pageItems.forEach(r => {
+
+        const occupants = grouped[r.id] || 0;
+        const available = r.capacity - occupants;
+        const percent = r.capacity > 0
+          ? Math.round((occupants / r.capacity) * 100)
+          : 0;
+
+        container.innerHTML += `
+      <div class="card" data-id="${r.id}">
+        <div class="badge ${available > 0 ? 'available' : 'full'}">
+          ${available > 0 ? 'Available' : 'Full'}
+        </div>
+
+        <h3 style="margin:0;font-size:18px;">
+          Room ${r.room_number}
+        </h3>
+
+        <div style="margin-top:10px;font-size:14px;">
+          <div style="display:flex;justify-content:space-between;">
+            <span>Capacity</span>
+            <strong>${r.capacity}</strong>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;">
+            <span>Occupants</span>
+            <strong>${occupants}</strong>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;">
+            <span>Type</span>
+            <strong>${getRoomGenderLabel(r.id)}</strong>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+            <span>Available</span>
+            <strong>${available}</strong>
+          </div>
+
+          <div style="height:10px;background:#e5e7eb;border-radius:10px;overflow:hidden;">
+            <div style="
+              height:100%;
+              width:${percent}%;
+              background:${available > 0 ? '#22c55e' : '#ef4444'};
+              transition:0.4s;
+            "></div>
+          </div>
+
+          <div style="font-size:12px;color:#6b7280;margin-top:6px;">
+            ${percent}% Occupied
+          </div>
+        </div>
+
+        <br>
+
+        <button class="primary"
+          onclick="location.href='room-details.html?id=${r.id}'">
+          View Details
+        </button>
+
+        ${occupants === 0 ?
+            `<button class="danger"
+            onclick="confirmDeleteRoom('${r.id}')">
+            Delete
+          </button>` : ""}
+      </div>
+    `;
+      });
+
+      pageInfo.innerText = `Page ${roomPage} of ${totalPages} (${totalItems} rooms)`;
+      prevBtn.disabled = roomPage <= 1;
+      nextBtn.disabled = roomPage >= totalPages;
+      pagination.style.display = totalItems > roomPageSize ? "flex" : "none";
+    }
+
+    let addingRoom = false;
+
+    window.addRoom = async () => {
+
+      let addingRoom = false;
+
+      window.addRoom = async () => {
+
+        if (addingRoom) return;
+        addingRoom = true;
+
+        const btn = event.target;
+        btn.disabled = true;
+        btn.innerText = "Adding...";
+
+        const roomNumber = document.getElementById("roomNumber").value.trim();
+        const capacity = parseInt(document.getElementById("capacity").value);
+
+        if (!roomNumber || !capacity || capacity <= 0) {
+          showError("Valid room number and capacity required.");
+          resetAddButton(btn);
+          return;
+        }
+
+        const { data, error } = await supabaseClient
+          .from("rooms")
+          .insert([{ room_number: roomNumber, capacity: capacity }])
+          .select();
+
+        if (error) {
+          showError("Failed to add room.");
+          resetAddButton(btn);
+          return;
+        }
+
+        const newRoom = data[0];
+
+        // Add to global array
+        allRooms.unshift(newRoom);
+
+        // Re-render everything (safe + clean)
+        applyRoomFilters(false);
+        updateRoomStats(allRooms, roomOccupancy);
+
+        document.getElementById("roomNumber").value = "";
+        document.getElementById("capacity").value = "";
+
+        resetAddButton(btn);
+      };
+    };
+    function resetAddButton(btn) {
+      btn.disabled = false;
+      btn.innerText = "Add Room";
+      addingRoom = false;
+    }
+    function appendRoomCard(room) {
+      renderRooms([room], {}); // quick render for single room
+    }
+
+    window.deleteRoom = async (id) => {
+      if (confirm("Delete room?")) {
+        await supabaseClient.from("rooms").delete().eq("id", id);
+        loadRooms();
+      }
+    };
+
+    document.getElementById("searchRoom")
+      .addEventListener("input", function () {
+        applyRoomFilters(true);
+      });
+
+    document.getElementById("roomGenderFilter")
+      .addEventListener("change", function () {
+        applyRoomFilters(true);
+      });
+
+    document.getElementById("roomsPrevBtn").addEventListener("click", function () {
+      roomPage -= 1;
+      renderRooms(filteredRooms, roomOccupancy);
+    });
+
+    document.getElementById("roomsNextBtn").addEventListener("click", function () {
+      roomPage += 1;
+      renderRooms(filteredRooms, roomOccupancy);
+    });
+
+    loadRooms();
+    function updateRoomStats(rooms, grouped) {
+
+      const totalRooms = rooms.length;
+
+      let totalCapacity = 0;
+      let totalOccupants = 0;
+
+      rooms.forEach(r => {
+        totalCapacity += Number(r.capacity);
+        totalOccupants += grouped[r.id] || 0;
+      });
+
+      const percent = totalCapacity > 0
+        ? Math.round((totalOccupants / totalCapacity) * 100)
+        : 0;
+
+      document.getElementById("roomStats").innerHTML = `
+    <div class="card" style="width:220px;">
+      <div style="font-size:13px;color:#6b7280;">Total Rooms</div>
+      <div style="font-size:26px;font-weight:700;">${totalRooms}</div>
+    </div>
+
+    <div class="card" style="width:220px;">
+      <div style="font-size:13px;color:#6b7280;">Total Capacity</div>
+      <div style="font-size:26px;font-weight:700;">${totalCapacity}</div>
+    </div>
+
+    <div class="card" style="width:220px;">
+      <div style="font-size:13px;color:#6b7280;">Occupied</div>
+      <div style="font-size:26px;font-weight:700;">${totalOccupants}</div>
+      <div style="font-size:12px;color:#9ca3af;">
+        ${percent}% Filled
+      </div>
+    </div>
+  `;
+    }
+    let roomToDelete = null;
+
+    function confirmDeleteRoom(id) {
+      roomToDelete = id;
+      document.getElementById("confirmText").innerText = "Delete this room?";
+      document.getElementById("confirmModal").style.display = "flex";
+    }
+
+    async function executeRoomDelete() {
+
+      if (!roomToDelete) return;
+
+      await supabaseClient
+        .from("rooms")
+        .delete()
+        .eq("id", roomToDelete);
+
+      // Remove from global array
+      allRooms = allRooms.filter(r => r.id !== roomToDelete);
+
+      applyRoomFilters(false);
+      updateRoomStats(allRooms, roomOccupancy);
+
+      closeModal();
+    }
+    document.getElementById("capacity")
+      .addEventListener("keydown", function (e) {
+        if (e.key === "Enter") addRoom();
+      });
+    function closeModal() {
+      document.querySelectorAll(".modal").forEach(modal => {
+        modal.style.display = "none";
+      });
+    }
+  </script>
+
+
+  <div class="modal" id="confirmModal">
+    <div class="modal-content">
+      <h3>Delete Room</h3>
+      <p id="confirmText"></p>
+
+      <div class="modal-actions">
+        <button onclick="closeModal()">Cancel</button>
+        <button class="danger" onclick="executeRoomDelete()">Delete</button>
+      </div>
+    </div>
+  </div>
+  <script src="ui-shortcuts.js"></script>
+  <script src="app-layout.js"></script>
+</body>
+
+</html>
+
+
+
+
+

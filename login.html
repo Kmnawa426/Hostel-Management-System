@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login | Trisha Vidya College Hostel</title> <!-- CHANGE REQUIRED: replace with your hostel/college name -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="project-setup-guide.js"></script>
+  <link rel="stylesheet" href="theme.css">
+
+  <style>
+    :root {
+      --ink: #12233b;
+      --muted: #5f6f86;
+      --line: #c6d4e7;
+      --panel: rgba(255, 255, 255, 0.9);
+      --brand-1: #18355d;
+      --brand-2: #2e5281;
+      --gold : #c9a25c;
+      --overlay: rgba(8, 20, 38, 0.34);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Manrope", sans-serif;
+      color: var(--ink);
+      padding: 96px 28px 28px;
+      position: relative;
+      overflow-x: hidden;
+      background: #11223c;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      gap: 14px;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -2;
+      background:
+        linear-gradient(160deg, rgba(12, 26, 45, 0.2) 8%, rgba(8, 20, 36, 0.44) 100%),
+        url("assets/college-login-bg.jpg") center/cover no-repeat; /* CHANGE REQUIRED: replace with your login background image if needed */
+      filter: saturate(1.02) contrast(1.04);
+      transform: scale(1.01);
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background:
+        radial-gradient(circle at 12% 12%, rgba(201, 162, 92, 0.14), transparent 38%),
+        linear-gradient(180deg, rgba(12, 24, 40, 0.18) 0%, var(--overlay) 100%);
+    }
+
+    .page-title {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      margin: 0;
+      padding: 16px 28px;
+      text-align: left;
+      font-size: clamp(20px, 3vw, 30px);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #f7fbff;
+      font-weight: 800;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+      background: linear-gradient(120deg, rgba(13, 31, 56, 0.92) 0%, rgba(21, 47, 83, 0.86) 100%);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      z-index: 30;
+    }
+
+    .login-shell {
+      width: min(1120px, 100%);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1.18fr 0.82fr;
+      gap: 22px;
+      align-items: stretch;
+    }
+
+    .college-info {
+      padding: 52px 44px;
+      background:
+        linear-gradient(145deg, rgba(17, 38, 67, 0.44) 0%, rgba(12, 27, 49, 0.64) 100%);
+      color: #f3f8ff;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 18px;
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 20px 44px rgba(8, 20, 40, 0.36);
+    }
+
+    .brand-lockup {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-lockup img {
+      width: 74px;
+      height: 74px;
+      object-fit: contain;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.94);
+      padding: 8px;
+      box-shadow: 0 14px 28px rgba(7, 18, 34, 0.24);
+    }
+
+    .brand-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .college-info .tag {
+      font-size: 12px;
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+      color: #e6eef9;
+      font-weight: 700;
+    }
+
+    .college-info h2 {
+      margin: 0;
+      font-size: clamp(28px, 3.8vw, 40px);
+      line-height: 1.15;
+      color: #ffffff;
+      font-weight: 800;
+    }
+
+    .college-info p {
+      margin: 0;
+      color: #dde7f6;
+      max-width: 44ch;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .college-info .rule {
+      width: 72px;
+      height: 4px;
+      border-radius: 999px;
+      background: var(--gold);
+    }
+
+    .college-info ul {
+      margin: 6px 0 0;
+      padding-left: 18px;
+      color: #ecf3ff;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+
+    .panel {
+      padding: 46px 38px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      background: var(--panel);
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      box-shadow: 0 20px 44px rgba(8, 20, 40, 0.32);
+    }
+
+    .setup-shell {
+      width: min(1120px, 100%);
+      margin: 8px auto 0;
+      padding: 24px;
+      border-radius: 28px;
+      background:
+        linear-gradient(145deg, rgba(247, 250, 255, 0.96) 0%, rgba(237, 244, 252, 0.94) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.55);
+      box-shadow: 0 24px 50px rgba(8, 20, 40, 0.26);
+      color: var(--ink);
+    }
+
+    .setup-hero {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+
+    .setup-card {
+      padding: 22px;
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.86);
+      border: 1px solid #d7e2f1;
+    }
+
+    .setup-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: #e9f1fb;
+      color: #21436d;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
+
+    .setup-card h3,
+    .setup-card h4,
+    .setup-step h4 {
+      margin: 0;
+      color: #112949;
+    }
+
+    .setup-card p,
+    .setup-step p,
+    .setup-field-card p,
+    .setup-tip-list li {
+      margin: 0;
+      color: #4f627d;
+      line-height: 1.65;
+      font-size: 14px;
+    }
+
+    .setup-card h3 {
+      margin-top: 14px;
+      font-size: clamp(24px, 3vw, 34px);
+    }
+
+    .setup-card h4 {
+      margin-bottom: 10px;
+      font-size: 17px;
+    }
+
+    .setup-actions,
+    .setup-pill-row,
+    .setup-meta-list,
+    .setup-step-grid,
+    .setup-field-grid,
+    .setup-code-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .setup-actions {
+      margin-top: 18px;
+    }
+
+    .setup-link,
+    .setup-copy {
+      border: 0;
+      border-radius: 12px;
+      padding: 11px 14px;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .setup-link {
+      color: #fff;
+      background: linear-gradient(120deg, var(--brand-1) 0%, var(--brand-2) 100%);
+    }
+
+    .setup-copy {
+      color: #1f3d65;
+      background: #edf4fc;
+      border: 1px solid #d4e0ef;
+    }
+
+    .setup-meta-list {
+      margin-top: 16px;
+    }
+
+    .setup-meta {
+      min-width: 140px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: #f5f8fc;
+      border: 1px solid #dbe6f4;
+    }
+
+    .setup-meta strong {
+      display: block;
+      font-size: 20px;
+      color: #123055;
+      margin-bottom: 4px;
+    }
+
+    .setup-pill-row {
+      margin-top: 14px;
+    }
+
+    .setup-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      border-radius: 999px;
+      background: #f3f7fc;
+      border: 1px solid #dbe6f4;
+      color: #23466f;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .setup-step-grid,
+    .setup-field-grid,
+    .setup-code-grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .setup-step-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin-bottom: 18px;
+    }
+
+    .setup-step {
+      padding: 20px;
+      border-radius: 22px;
+      background: #fff;
+      border: 1px solid #dbe6f4;
+    }
+
+    .setup-step-index {
+      display: inline-flex;
+      width: 34px;
+      height: 34px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      background: #16345c;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+
+    .setup-step h4 {
+      margin-bottom: 8px;
+      font-size: 18px;
+    }
+
+    .setup-field-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin-bottom: 18px;
+    }
+
+    .setup-field-card {
+      padding: 18px;
+      border-radius: 20px;
+      background: #fff;
+      border: 1px solid #dbe6f4;
+    }
+
+    .setup-field-card code {
+      display: block;
+      margin-top: 10px;
+      color: #18395f;
+      font-size: 12px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .setup-code-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .setup-code-card {
+      padding: 18px;
+      border-radius: 22px;
+      background: #10233e;
+      color: #eef4fb;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .setup-code-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .setup-code-head h4 {
+      color: #f8fbff;
+      font-size: 18px;
+    }
+
+    .setup-code-card p {
+      color: #bfd0e8;
+      margin-bottom: 12px;
+    }
+
+    .setup-code-card pre {
+      margin: 0;
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(7, 16, 31, 0.74);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      overflow: auto;
+      font-size: 12px;
+      line-height: 1.65;
+      color: #eef4fb;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .setup-code-card .setup-copy {
+      color: #10233e;
+      background: #f3f7fc;
+      border-color: transparent;
+      flex-shrink: 0;
+    }
+
+    .setup-tip-list {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .setup-tip-list li + li {
+      margin-top: 8px;
+    }
+
+    .panel h2 {
+      margin: 0 0 8px;
+      font-size: 29px;
+      color: #132745;
+      font-weight: 800;
+    }
+
+    .panel .sub {
+      margin: 0 0 24px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .label {
+      display: block;
+      margin-bottom: 6px;
+      color: #223a5c;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
+
+    .field {
+      width: 100%;
+      border: 1px solid #c9d6e8;
+      border-radius: 12px;
+      padding: 13px 14px;
+      background: #fdfefe;
+      margin-bottom: 16px;
+      font: inherit;
+      color: var(--ink);
+    }
+
+    .password-wrap {
+      position: relative;
+      margin-bottom: 16px;
+    }
+
+    .password-wrap .field {
+      margin-bottom: 0;
+      padding-right: 84px;
+    }
+
+    .toggle-password {
+      position: absolute;
+      top: 50%;
+      right: 10px;
+      transform: translateY(-50%);
+      border: 0;
+      background: transparent;
+      color: #28466f;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      cursor: pointer;
+      padding: 6px 8px;
+      border-radius: 8px;
+    }
+
+    .toggle-password:hover {
+      background: rgba(40, 70, 111, 0.08);
+    }
+
+    .field:focus {
+      outline: none;
+      border-color: #345a8f;
+      box-shadow: 0 0 0 4px rgba(52, 90, 143, 0.14);
+    }
+
+    .login-btn {
+      width: 100%;
+      border: none;
+      border-radius: 12px;
+      padding: 13px;
+      font: inherit;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(120deg, var(--brand-1) 0%, var(--brand-2) 100%);
+      cursor: pointer;
+      transition: transform 160ms ease, filter 160ms ease;
+    }
+
+    .login-btn:hover {
+      filter: brightness(0.96);
+      transform: translateY(-1px);
+    }
+
+    .login-btn[disabled] {
+      cursor: wait;
+      opacity: 0.76;
+      transform: none;
+      filter: none;
+    }
+
+    .helper-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: -2px 0 18px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .helper-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: #eef4fb;
+      border: 1px solid #d7e2f1;
+      font-weight: 700;
+      color: #26446e;
+    }
+
+    .helper-badge::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #18a957;
+      box-shadow: 0 0 0 5px rgba(24, 169, 87, 0.12);
+    }
+
+    .error {
+      min-height: 18px;
+      margin-top: 10px;
+      color: #b42318;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .error[data-state="success"] {
+      color: #0f8a42;
+    }
+
+    @media (max-width: 900px) {
+      body {
+        padding: 78px 16px 16px;
+        justify-content: flex-start;
+      }
+
+      .page-title {
+        padding: 14px 16px;
+        font-size: 20px;
+      }
+
+      .login-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .college-info {
+        padding: 32px 24px;
+      }
+
+      .brand-lockup {
+        align-items: flex-start;
+      }
+
+      .brand-lockup img {
+        width: 64px;
+        height: 64px;
+      }
+
+      .college-info h2 {
+        font-size: 28px;
+      }
+
+      .panel {
+        padding: 30px 24px;
+      }
+
+      .setup-shell,
+      .setup-card,
+      .setup-step,
+      .setup-field-card,
+      .setup-code-card {
+        padding: 18px;
+      }
+
+      .setup-hero,
+      .setup-step-grid,
+      .setup-field-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .setup-code-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+
+<body data-auto-title-bar="off">
+  <h1 class="page-title">Hostel Management System</h1>
+  <main class="login-shell">
+    <section class="college-info">
+      <div class="brand-lockup">
+        <img src="assets/trisha-logo.png" alt="Trisha Vidya College logo"> <!-- CHANGE REQUIRED: replace logo file and alt text -->
+        <div class="brand-copy">
+          <div class="tag">Welcome To</div>
+          <div class="rule"></div>
+        </div>
+      </div>
+      <h2>Trisha Vidya College of Commerce and Management</h2> <!-- CHANGE REQUIRED: replace institution name -->
+      <p>Secure hostel administration portal for daily operations, accommodation records, fee follow-up, and student support workflows.</p> <!-- CHANGE REQUIRED: replace intro text if needed -->
+      <ul>
+        <li>S.V.S. Campus, Mattu Road, Katapadi, Udupi</li> <!-- CHANGE REQUIRED: replace address -->
+        <li>Student management and room allocation</li> <!-- CHANGE REQUIRED: replace feature text if needed -->
+        <li>Installments, attendance, and complaints workflow</li> <!-- CHANGE REQUIRED: replace feature text if needed -->
+      </ul>
+    </section>
+
+    <section class="panel">
+      <h2>Welcome Back</h2>
+      <p class="sub">Enter your credentials to continue.</p>
+
+      <form id="loginForm">
+        <label for="email" class="label">Email Address</label>
+        <input type="email" id="email" class="field" placeholder="admin@college.edu" autocomplete="username" required>
+        <label for="password" class="label">Password</label>
+        <div class="password-wrap">
+          <input type="password" id="password" class="field" placeholder="Enter your password" autocomplete="current-password" required>
+          <button type="button" class="toggle-password" id="togglePassword" aria-label="Show password">Show</button>
+        </div>
+        <div class="helper-row">
+          <span>Use your hostel admin credentials to continue.</span>
+          <span class="helper-badge">Secure Access</span>
+        </div>
+        <button type="submit" class="login-btn" id="loginBtn">Login</button>
+      </form>
+
+      <div id="errorMsg" class="error" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <footer class="setup-shell" id="setupGuide" aria-label="Project setup guide"></footer>
+
+  <script>
+    const setupGuideRoot = document.getElementById("setupGuide");
+    const guideData = window.HOSTEL_SETUP_GUIDE || null;
+    let supabaseClient = null;
+
+    const loginForm = document.getElementById("loginForm");
+    const emailInput = document.getElementById("email");
+    const passwordInput = document.getElementById("password");
+    const loginBtn = document.getElementById("loginBtn");
+    const errorMsg = document.getElementById("errorMsg");
+    const togglePasswordBtn = document.getElementById("togglePassword");
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function renderSetupGuide() {
+      if (!setupGuideRoot || !guideData) return;
+
+      const tableCards = Object.entries(guideData.fields).map(function (entry) {
+        return `
+          <article class="setup-field-card">
+            <h4>${escapeHtml(entry[0])}</h4>
+            <p>Exact fields used by the current frontend.</p>
+            <code>${escapeHtml(entry[1].join(", "))}</code>
+          </article>
+        `;
+      }).join("");
+
+      const stepCards = guideData.steps.map(function (step, index) {
+        return `
+          <article class="setup-step">
+            <div class="setup-step-index">${index + 1}</div>
+            <h4>${escapeHtml(step.title)}</h4>
+            <p>${escapeHtml(step.body)}</p>
+          </article>
+        `;
+      }).join("");
+
+      const bucketPills = (guideData.buckets || []).map(function (bucket) {
+        return `<span class="setup-pill">${escapeHtml(bucket)}</span>`;
+      }).join("");
+
+      const manualCards = (guideData.manualChanges || []).map(function (item) {
+        return `
+          <article class="setup-field-card">
+            <h4>${escapeHtml(item.file)}</h4>
+            <p><strong>Lines:</strong> ${escapeHtml(item.lines)}</p>
+            <code>${escapeHtml(item.body)}</code>
+          </article>
+        `;
+      }).join("");
+
+      setupGuideRoot.innerHTML = `
+        <section class="setup-hero">
+          <article class="setup-card">
+            <span class="setup-eyebrow">Shareable Project Guide</span>
+            <h3>Use this hostel system in your own Supabase project</h3>
+            <p>This footer explains exactly how another hostel can reuse the project, which tables and fields are required, what policies to create, and which branding files to replace. The schema below was verified against the current pages in this repository.</p>
+            <div class="setup-actions">
+              <a class="setup-link" href="${escapeHtml(guideData.repoUrl)}" target="_blank" rel="noreferrer">Open GitHub Repo</a>
+              <a class="setup-copy" href="supabase-setup.sql" download>Download Setup SQL</a>
+            </div>
+            <div class="setup-meta-list">
+              <div class="setup-meta">
+                <strong>${Object.keys(guideData.fields).length}</strong>
+                <span>Verified tables</span>
+              </div>
+              <div class="setup-meta">
+                <strong>${(guideData.buckets || []).length}</strong>
+                <span>Storage buckets</span>
+              </div>
+              <div class="setup-meta">
+                <strong>1</strong>
+                <span>Shared config file</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="setup-card">
+            <h4>What another hostel must change</h4>
+            <ul class="setup-tip-list">
+              <li>Create a new Supabase project and one admin Auth user.</li>
+              <li>Run the SQL in the editor below or from <code>supabase-setup.sql</code>.</li>
+              <li>Replace the placeholders in <code>supabase-config.js</code> with the new project URL and anon key.</li>
+              <li>Replace <code>assets/trisha-logo.png</code> and <code>assets/college-login-bg.jpg</code> with their own branding.</li>
+              <li>Update visible college or hostel names in <code>login.html</code> and any other branded copy they want to rename.</li>
+            </ul>
+            <div class="setup-pill-row">
+              ${bucketPills}
+            </div>
+          </article>
+        </section>
+
+        <section class="setup-step-grid">
+          ${stepCards}
+        </section>
+
+        <section class="setup-field-grid">
+          ${tableCards}
+        </section>
+
+        <section class="setup-field-grid">
+          ${manualCards}
+        </section>
+
+        <section class="setup-code-grid">
+          <article class="setup-code-card">
+            <div class="setup-code-head">
+              <div>
+                <h4>Table SQL</h4>
+                <p>Create the exact tables and indexes the app expects.</p>
+              </div>
+              <button type="button" class="setup-copy" data-copy-target="tablesSql">Copy Table SQL</button>
+            </div>
+            <pre><code id="tablesSql">${escapeHtml(guideData.tablesSql)}</code></pre>
+          </article>
+
+          <article class="setup-code-card">
+            <div class="setup-code-head">
+              <div>
+                <h4>RLS Policies</h4>
+                <p>Allow authenticated hostel admins to use every page with the publishable anon key.</p>
+              </div>
+              <button type="button" class="setup-copy" data-copy-target="policiesSql">Copy RLS SQL</button>
+            </div>
+            <pre><code id="policiesSql">${escapeHtml(guideData.policiesSql)}</code></pre>
+          </article>
+
+          <article class="setup-code-card">
+            <div class="setup-code-head">
+              <div>
+                <h4>Storage Buckets</h4>
+                <p>Create the image buckets and policies for student photos and hostel events.</p>
+              </div>
+              <button type="button" class="setup-copy" data-copy-target="storageSql">Copy Storage SQL</button>
+            </div>
+            <pre><code id="storageSql">${escapeHtml(guideData.storageSql)}</code></pre>
+          </article>
+        </section>
+      `;
+
+      setupGuideRoot.addEventListener("click", async function (event) {
+        const trigger = event.target.closest("[data-copy-target]");
+        if (!trigger) return;
+        const targetId = trigger.getAttribute("data-copy-target");
+        const source = document.getElementById(targetId);
+        if (!source) return;
+        try {
+          await navigator.clipboard.writeText(source.textContent);
+          const original = trigger.textContent;
+          trigger.textContent = "Copied";
+          window.setTimeout(function () {
+            trigger.textContent = original;
+          }, 1400);
+        } catch (error) {
+          trigger.textContent = "Copy failed";
+        }
+      });
+    }
+
+    function setMessage(message, state) {
+      errorMsg.textContent = message || "";
+      errorMsg.dataset.state = state || "error";
+    }
+
+    function setSubmitting(isSubmitting) {
+      loginBtn.disabled = isSubmitting;
+      emailInput.disabled = isSubmitting;
+      passwordInput.disabled = isSubmitting;
+      togglePasswordBtn.disabled = isSubmitting;
+      loginBtn.textContent = isSubmitting ? "Signing In..." : "Login";
+    }
+
+    function setLoginAvailability(isAvailable) {
+      emailInput.disabled = !isAvailable;
+      passwordInput.disabled = !isAvailable;
+      togglePasswordBtn.disabled = !isAvailable;
+      loginBtn.disabled = !isAvailable;
+      loginBtn.textContent = isAvailable ? "Login" : "Configure Supabase First";
+    }
+
+    function initializeSupabase() {
+      try {
+        supabaseClient = window.getSupabaseClient();
+        setLoginAvailability(true);
+      } catch (error) {
+        supabaseClient = null;
+        setLoginAvailability(false);
+        setMessage("Supabase is not configured yet. Follow the setup guide below, then replace the placeholders in supabase-config.js.", "error");
+      }
+    }
+
+    togglePasswordBtn.addEventListener("click", function () {
+      const isHidden = passwordInput.type === "password";
+      passwordInput.type = isHidden ? "text" : "password";
+      togglePasswordBtn.textContent = isHidden ? "Hide" : "Show";
+      togglePasswordBtn.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
+    });
+
+    async function redirectIfLoggedIn() {
+      if (!supabaseClient) return;
+      try {
+        const { data, error } = await supabaseClient.auth.getUser();
+        if (error) return;
+        if (data?.user) {
+          setMessage("Session detected. Redirecting to dashboard...", "success");
+          window.location.replace("dashboard.html");
+        }
+      } catch (error) {
+        setMessage("Unable to verify your current session right now.", "error");
+      }
+    }
+
+    loginForm.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      if (!supabaseClient) {
+        setMessage("Configure Supabase first, then try logging in.", "error");
+        return;
+      }
+      setMessage("", "error");
+      setSubmitting(true);
+
+      try {
+        const { error } = await supabaseClient.auth.signInWithPassword({
+          email: emailInput.value.trim(),
+          password: passwordInput.value
+        });
+
+        if (error) {
+          setMessage(error.message, "error");
+          return;
+        }
+
+        setMessage("Login successful. Redirecting to dashboard...", "success");
+        window.location.replace("dashboard.html");
+      } catch (error) {
+        setMessage("Login failed. Please check your connection and try again.", "error");
+      } finally {
+        setSubmitting(false);
+      }
+    });
+
+    renderSetupGuide();
+    initializeSupabase();
+    redirectIfLoggedIn();
+  </script>
+
+  <script src="ui-shortcuts.js"></script>
+</body>
+</html>

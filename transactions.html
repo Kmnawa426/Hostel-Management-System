@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>All Transactions</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      background: #f1f5f9;
+    }
+
+    .topbar {
+      background: #111;
+      color: white;
+      padding: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .container {
+      padding: 30px;
+    }
+
+    .filters {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    input,
+    select {
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+    }
+
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 14px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      transition: 0.3s;
+    }
+
+    #list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 15px;
+    }
+
+    .full-width-message {
+      grid-column: 1 / -1;
+    }
+
+    .app-pagination {
+      margin-top: 18px;
+    }
+
+    @media (max-width: 900px) {
+      #list {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .overdue {
+      border-left: 6px solid red;
+    }
+
+    .paid {
+      opacity: 0.5;
+    }
+
+    .status {
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+    }
+
+    .pending {
+      background: #facc15;
+    }
+
+    .partial {
+      background: #38bdf8;
+      color: white;
+    }
+
+    .overdueStatus {
+      background: #ef4444;
+      color: white;
+    }
+
+    .paidStatus {
+      background: #22c55e;
+      color: white;
+    }
+
+    button {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-top: 10px;
+    }
+
+    .primary {
+      background: #4f46e5;
+      color: white;
+    }
+
+    .createCard {
+      border-left: 6px solid #22c55e;
+    }
+
+    .paymentCard {
+      border-left: 6px solid #3b82f6;
+    }
+
+    .editCard {
+      border-left: 6px solid #f59e0b;
+    }
+
+    .create {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .payment {
+      background: #dbeafe;
+      color: #1e3a8a;
+    }
+
+    .edit {
+      background: #fef3c7;
+      color: #92400e;
+    }
+  </style>
+  <link rel="stylesheet" href="theme.css">
+</head>
+
+<body>
+
+  <div class="topbar">
+    <div>All Installments</div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button class="primary" onclick="exportTransactions()">Export</button>
+      <button class="primary" onclick="location.href='students.html'">Back</button>
+    </div>
+  </div>
+
+  <div class="container">
+
+    <div class="filters">
+      <input type="text" id="searchBox" placeholder="Search by Name or HST">
+      <select id="statusFilter">
+        <option value="all">All Actions</option>
+        <option value="create">Created</option>
+        <option value="received">Received</option>
+        <option value="edit">Edited</option>
+      </select>
+      <select id="sortField">
+        <option value="created_at">Sort by Date</option>
+        <option value="amount">Sort by Amount</option>
+      </select>
+
+      <h4>From </h4>
+      <input type="date" id="fromDate">
+      <h4>To </h4>
+      <input type="date" id="toDate">
+    </div>
+
+    <div id="list"></div>
+    <div id="pagination" class="app-pagination"></div>
+
+  </div>
+
+  <script>
+
+    const supabaseClient = window.getSupabaseClient();
+    const txStudentCache = {};
+    const PAGE_SIZE = 10;
+    let currentPage = 1;
+    let latestFilteredTransactions = [];
+
+    function formatTransactionTime(value) {
+      if (typeof window.formatHostelDateTime === "function") {
+        return window.formatHostelDateTime(value);
+      }
+      return new Date(value).toLocaleString("en-IN");
+    }
+
+    async function resolveStudentById(studentId) {
+      if (!studentId) return null;
+      const cacheKey = `student:${studentId}`;
+      if (txStudentCache[cacheKey]) return txStudentCache[cacheKey];
+
+      const { data: studentData } = await supabaseClient
+        .from("students")
+        .select("name,hst_number")
+        .eq("id", studentId)
+        .maybeSingle();
+
+      txStudentCache[cacheKey] = studentData || null;
+      return txStudentCache[cacheKey];
+    }
+
+    async function resolveTransactionStudent(installmentId, txMeta = null) {
+      if (txMeta?.student_id) {
+        const metaStudent = await resolveStudentById(txMeta.student_id);
+        if (metaStudent) return metaStudent;
+      }
+
+      if (!installmentId) {
+        return { name: "Unknown", hst_number: "-" };
+      }
+
+      if (txStudentCache[installmentId]) return txStudentCache[installmentId];
+
+      let student = null;
+
+      const { data: scheduleData } = await supabaseClient
+        .from("installment_schedules")
+        .select(`
+          installment_plans(
+            students(name,hst_number)
+          )
+        `)
+        .eq("id", installmentId)
+        .maybeSingle();
+
+      if (scheduleData?.installment_plans?.students) {
+        student = scheduleData.installment_plans.students;
+      }
+
+      if (!student) {
+        const { data: planData } = await supabaseClient
+          .from("installment_plans")
+          .select("students(name,hst_number)")
+          .eq("id", installmentId)
+          .maybeSingle();
+
+        if (planData?.students) {
+          student = planData.students;
+        }
+      }
+
+      if (!student) {
+        const { data: oldInstData } = await supabaseClient
+          .from("student_installments")
+          .select("students(name,hst_number)")
+          .eq("id", installmentId)
+          .maybeSingle();
+
+        if (oldInstData?.students) {
+          student = oldInstData.students;
+        }
+      }
+
+      txStudentCache[installmentId] = student || { name: "Unknown", hst_number: "-" };
+      return txStudentCache[installmentId];
+    }
+
+    async function loadTransactions() {
+
+      const search = document.getElementById("searchBox").value.toLowerCase();
+      const sortField = document.getElementById("sortField").value;
+      const fromDate = document.getElementById("fromDate").value;
+      const toDate = document.getElementById("toDate").value;
+      const actionFilter = document.getElementById("statusFilter").value;
+
+      let query = supabaseClient
+        .from("installment_transactions")
+        .select("*")
+        .order(sortField, { ascending: false });
+
+      if (fromDate) {
+        const range = typeof window.getHostelDayRangeIso === "function"
+          ? window.getHostelDayRangeIso(fromDate)
+          : null;
+        query = query.gte("created_at", range ? range.startIso : fromDate);
+      }
+
+      if (toDate) {
+        const range = typeof window.getHostelDayRangeIso === "function"
+          ? window.getHostelDayRangeIso(toDate)
+          : null;
+        query = query.lte("created_at", range ? range.endIso : (toDate + "T23:59:59"));
+      }
+
+      if (actionFilter === "received") {
+        query = query.in("action_type", ["received", "payment"]);
+      } else if (actionFilter !== "all") {
+        query = query.eq("action_type", actionFilter);
+      }
+
+      const { data, error } = await query;
+      const container = document.getElementById("list");
+      const paginationEl = document.getElementById("pagination");
+      container.innerHTML = "";
+      paginationEl.innerHTML = "";
+
+      if (error) {
+        console.error(error);
+        latestFilteredTransactions = [];
+        container.innerHTML = `<div class="card full-width-message">Failed to load transactions.</div>`;
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        latestFilteredTransactions = [];
+        container.innerHTML = `<div class="card full-width-message">No transactions found.</div>`;
+        return;
+      }
+
+      const filtered = [];
+
+      for (let tx of data) {
+        let txMeta = null;
+        if (tx.note) {
+          try {
+            txMeta = JSON.parse(tx.note);
+          } catch (e) {
+            txMeta = null;
+          }
+        }
+
+        const student = await resolveTransactionStudent(tx.installment_id, txMeta);
+
+        const studentMatch =
+          (student.name || "").toLowerCase().includes(search) ||
+          (student.hst_number || "").toLowerCase().includes(search);
+
+        if (search && !studentMatch) continue;
+
+        filtered.push({ tx, txMeta, student });
+      }
+
+      latestFilteredTransactions = filtered;
+
+      if (filtered.length === 0) {
+        latestFilteredTransactions = [];
+        container.innerHTML = `<div class="card full-width-message">No transactions found.</div>`;
+        return;
+      }
+
+      const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+      if (currentPage > totalPages) currentPage = totalPages;
+
+      const startIndex = (currentPage - 1) * PAGE_SIZE;
+      const pageItems = filtered.slice(startIndex, startIndex + PAGE_SIZE);
+
+      for (let item of pageItems) {
+        const tx = item.tx;
+        const txMeta = item.txMeta;
+        const student = item.student;
+
+        const formattedDate = formatTransactionTime(tx.created_at);
+
+        const normalizedAction = tx.action_type === "payment" ? "received" : tx.action_type;
+
+        let actionClass = "";
+        if (normalizedAction === "create") actionClass = "createCard";
+        if (normalizedAction === "received") actionClass = "paymentCard";
+        if (normalizedAction === "edit") actionClass = "editCard";
+
+        const idLabel = tx.installment_id
+          ? tx.installment_id
+          : (txMeta?.schedule_id || txMeta?.plan_id || "-");
+
+        container.innerHTML += `
+<div class="card ${actionClass}">
+  <strong>${student.name} (${student.hst_number})</strong><br>
+  Installment ID: ${idLabel}<br><br>
+
+  Action: <b>${normalizedAction.toUpperCase()}</b><br>
+  Amount: \u20B9${tx.amount}<br>
+  Remaining After: \u20B9${tx.remaining_balance}<br>
+  Date: ${formattedDate}<br>
+</div>
+`;
+      }
+
+      renderPagination(filtered.length, totalPages);
+    }
+
+    function exportTransactions() {
+      if (!latestFilteredTransactions.length) {
+        alert("No transactions available to export.");
+        return;
+      }
+
+      const exportRows = latestFilteredTransactions.map(({ tx, txMeta, student }) => {
+        const normalizedAction = tx.action_type === "payment" ? "received" : tx.action_type;
+        const installmentRef = tx.installment_id
+          ? tx.installment_id
+          : (txMeta?.schedule_id || txMeta?.plan_id || "-");
+
+        return {
+          Student: student.name || "Unknown",
+          HST: student.hst_number || "-",
+          Action: normalizedAction,
+          Amount: Number(tx.amount || 0),
+          "Remaining After": Number(tx.remaining_balance || 0),
+          "Installment Ref": installmentRef,
+          "Schedule ID": txMeta?.schedule_id || "",
+          "Plan ID": txMeta?.plan_id || "",
+          "Transaction Date": formatTransactionTime(tx.created_at)
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(exportRows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Transactions");
+      XLSX.writeFile(workbook, "Transactions.xlsx");
+    }
+
+    function renderPagination(totalItems, totalPages) {
+      const paginationEl = document.getElementById("pagination");
+      if (!paginationEl) return;
+
+      if (totalPages <= 1) {
+        paginationEl.innerHTML = "";
+        return;
+      }
+
+      paginationEl.innerHTML = `
+        <button type="button" class="secondary" ${currentPage === 1 ? "disabled" : ""} onclick="changePage(-1)">Previous</button>
+        <span class="app-pagination-info">Page ${currentPage} / ${totalPages}</span>
+        <button type="button" class="secondary" ${currentPage === totalPages ? "disabled" : ""} onclick="changePage(1)">Next</button>
+      `;
+    }
+
+    function changePage(step) {
+      currentPage += step;
+      if (currentPage < 1) currentPage = 1;
+      loadTransactions();
+    }
+
+      document.addEventListener("DOMContentLoaded", function () {
+
+        const searchBox = document.getElementById("searchBox");
+        const statusFilter = document.getElementById("statusFilter");
+        const sortField = document.getElementById("sortField");
+        const fromDate = document.getElementById("fromDate");
+        const toDate = document.getElementById("toDate");
+
+        if (searchBox) searchBox.addEventListener("input", function () { currentPage = 1; loadTransactions(); });
+        if (statusFilter) statusFilter.addEventListener("change", function () { currentPage = 1; loadTransactions(); });
+        if (sortField) sortField.addEventListener("change", function () { currentPage = 1; loadTransactions(); });
+        if (fromDate) fromDate.addEventListener("change", function () { currentPage = 1; loadTransactions(); });
+        if (toDate) toDate.addEventListener("change", function () { currentPage = 1; loadTransactions(); });
+
+        loadTransactions();
+
+      });
+  </script>
+
+  <script src="ui-shortcuts.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="app-layout.js"></script>
+</body>
+
+</html>
+
+
+
+
+
+
